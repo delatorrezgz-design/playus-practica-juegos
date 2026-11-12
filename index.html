@@ -33,7 +33,7 @@ body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:1
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .name{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em}
 .seg{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
-.seg button{border:0;background:none;color:var(--muted);font:600 13px var(--body);padding:7px 12px;border-radius:999px;cursor:pointer}
+.seg button{border:0;background:none;color:var(--muted);font:600 12px var(--body);padding:7px 9px;white-space:nowrap;border-radius:999px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;background:var(--page);touch-action:none;cursor:pointer}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -73,6 +73,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
     <div class="seg" role="group" aria-label="Modo de juego">
       <button id="mode-dia" type="button">Reto del día</button>
       <button id="mode-libre" type="button">Práctica libre</button>
+      <button id="mode-hoy" type="button">Recorrido 12 nov</button>
     </div>
   </div>
   <div class="stage" id="stage">
@@ -86,13 +87,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 (function(){
 "use strict";
 var H=620, FW=400, STEP=1/120, CW=53, HS=15.4, SPIN=2.95, EDGE=10, TRIES=3;
-var DEF={g:1520,j:442,vt:1500,gap:201,shr:3.4,gmin:95,sp:276,v0:197,inc:3.1,vmax:420};
+var DEF={g:1520,j:442,vt:1500,gap:200.5,shr:3.3,gmin:62,sp:276,v0:192,inc:3.75,vmax:420}, CFGV=4;
 var FIELDS=[["g","Gravedad",1000,2600,10],["j","Impulso de cada toque",300,800,5],["vt","Caída máxima",500,1500,10],
-  ["gap","Alto de la franja al empezar",120,260,2],["shr","Estrechamiento por columna",0,8,0.1],["gmin","Franja mínima",60,200,5],
+  ["gap","Alto de la franja al empezar",120,260,0.5],["shr","Estrechamiento por columna",0,8,0.1],["gmin","Franja mínima",45,200,1],
   ["sp","Distancia entre columnas",180,380,1],["v0","Velocidad inicial",100,320,1],["inc","Aumento por columna",0,10,0.1],["vmax","Velocidad máxima",200,600,10]];
 
 var S={best:0,hist:[],days:{},cfg:Object.assign({},DEF),mode:"dia"};
-try{var raw=localStorage.getItem("franja_v3"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=Object.assign({},DEF,o.cfg||{});}}catch(e){}
+try{var raw=localStorage.getItem("franja_v3"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV;}catch(e){}
 function save(){try{localStorage.setItem("franja_v3",JSON.stringify(S));}catch(e){}}
 function dayKey(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function today(){var k=dayKey(); if(!S.days[k])S.days[k]=[]; return S.days[k];}
@@ -101,7 +102,8 @@ function hash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i)
 
 var stage=document.getElementById("stage"), cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 var elScore=document.getElementById("score"), elSpeed=document.getElementById("speed"), over=document.getElementById("over"), card=document.getElementById("card");
-var bDia=document.getElementById("mode-dia"), bLibre=document.getElementById("mode-libre");
+var bDia=document.getElementById("mode-dia"), bLibre=document.getElementById("mode-libre"), bHoy=document.getElementById("mode-hoy");
+var COURSE=[305.4,311.1,244.4,338.3,209.4,315.6,402.2,394.1,384.8,221.3,310.0,262.8,270.9,248.9,291.1];
 var W=FW, scale=1, C={};
 function colors(){var cs=getComputedStyle(document.documentElement);["sky","hills","col","cap","floor","floor-line","token","ring","ink"].forEach(function(n){C[n]=cs.getPropertyValue("--"+n).trim();});}
 function resize(){var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,3); if(!r.height)return;
@@ -119,8 +121,8 @@ function speed(){return Math.min(S.cfg.vmax, S.cfg.v0+S.cfg.inc*score);}
 function triesLeft(){return TRIES-today().length;}
 function blocked(){return S.mode==="dia"&&triesLeft()<=0;}
 
-function addCol(x){var c=S.cfg, gap=Math.max(c.gmin,c.gap-c.shr*nCol), lo=150+gap/2, hi=505-gap/2;
-  cols.push({x:x,gy:lo+rand()*Math.max(0,hi-lo),gap:gap,passed:false}); nCol++;}
+function addCol(x){var c=S.cfg, gap=Math.max(c.gmin,c.gap-c.shr*nCol), lo=110+gap/2, hi=500-gap/2;
+  cols.push({x:x,gy:S.mode==="hoy"&&nCol<COURSE.length?COURSE[nCol]:lo+rand()*Math.max(0,hi-lo),gap:gap,passed:false}); nCol++;}
 function start(){
   if(blocked())return;
   rand = Math.random;
@@ -183,7 +185,7 @@ function avg(){var h=S.hist.slice(-10); if(!h.length)return "–"; return (h.red
 function dayBest(k){var a=S.days[k]; return a&&a.length?Math.max.apply(null,a):null;}
 function esc(n){return String(n);}
 function panel(){
-  over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre");
+  over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre"); bHoy.setAttribute("aria-pressed",S.mode==="hoy");
   if(view==="cfg"){
     card.innerHTML='<h2>Ajustes de física</h2><p>Valores medidos en una grabación del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
       FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
@@ -198,9 +200,10 @@ function panel(){
   if(state==="dead"&&lastScore!==null){
     html+='<div><div class="lbl">'+(lastScore>=S.best&&lastScore>0?"Nuevo récord":"Puntos")+'</div><div class="big">'+esc(lastScore)+'</div></div>';
   } else {
-    html+='<h2>'+(dia?"Reto del día":"Práctica libre")+'</h2>';
+    html+='<h2>'+(dia?"Reto del día":S.mode==="hoy"?"Recorrido del 12 de noviembre":"Práctica libre")+'</h2>';
   }
   if(dia) html+='<p>'+(left>0?(left===TRIES?"Tienes 3 intentos. Cuenta tu mejor marca del día y los huecos cambian en cada partida.":"Te queda"+(left>1?"n ":" ")+left+" intento"+(left>1?"s":"")+" hoy. Cuenta tu mejor marca."):"Has gastado los 3 intentos de hoy. Marca del día: "+tb+". Sigue entrenando en práctica libre.")+'</p>';
+  else if(state!=="dead"&&S.mode==="hoy") html+='<p>Intentos ilimitados. Las 15 primeras franjas están donde salieron en tu grabación del 12 de noviembre; a partir de ahí, al azar.</p>';
   else if(state!=="dead") html+='<p>Intentos ilimitados y recorrido distinto cada vez. Toca para subir; con cada columna sube la velocidad y se estrecha la franja. Tocar el techo o el suelo también cuenta como fallo.</p>';
   html+='<dl class="stats"><div><dt>Récord</dt><dd>'+S.best+'</dd></div><div><dt>Media 10</dt><dd>'+avg()+'</dd></div><div><dt>Hoy</dt><dd>'+(tb===null?"–":tb)+'</dd></div></dl>';
   var ds=[],mx=1,i; for(i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=dayKey(d),b=dayBest(k);ds.push([d,b,i===0]);if(b>mx)mx=b;}
@@ -213,7 +216,7 @@ function panel(){
   var bl=document.getElementById("b-libre"); if(bl)bl.onclick=function(){setMode("libre");};
 }
 function setMode(m){if(state==="play")return; S.mode=m; save(); state="ready"; lastScore=null; cols=[]; score=0; view="main"; hud(); panel();}
-bDia.onclick=function(){setMode("dia");}; bLibre.onclick=function(){setMode("libre");};
+bDia.onclick=function(){setMode("dia");}; bLibre.onclick=function(){setMode("libre");}; bHoy.onclick=function(){setMode("hoy");};
 
 function tap(){
   if(state==="play"){flap();return;}
