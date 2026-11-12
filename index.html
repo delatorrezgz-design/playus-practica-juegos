@@ -85,15 +85,15 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 <script>
 (function(){
 "use strict";
-var H=620, FW=400, STEP=1/120, CW=52, R=16, EDGE=8, TRIES=3;
-var DEF={g:2280,j:535,vt:720,gap:200,shr:3.4,gmin:95,sp:273,v0:199,inc:3.1,vmax:420};
-var FIELDS=[["g","Gravedad",1200,3400,20],["j","Impulso de cada toque",300,800,5],["vt","Caída máxima",400,1400,10],
+var H=620, FW=400, STEP=1/120, CW=53, HS=15.4, SPIN=2.95, EDGE=10, TRIES=3;
+var DEF={g:1520,j:442,vt:1500,gap:201,shr:3.4,gmin:95,sp:276,v0:197,inc:3.1,vmax:420};
+var FIELDS=[["g","Gravedad",1000,2600,10],["j","Impulso de cada toque",300,800,5],["vt","Caída máxima",500,1500,10],
   ["gap","Alto de la franja al empezar",120,260,2],["shr","Estrechamiento por columna",0,8,0.1],["gmin","Franja mínima",60,200,5],
   ["sp","Distancia entre columnas",180,380,1],["v0","Velocidad inicial",100,320,1],["inc","Aumento por columna",0,10,0.1],["vmax","Velocidad máxima",200,600,10]];
 
 var S={best:0,hist:[],days:{},cfg:Object.assign({},DEF),mode:"dia"};
-try{var raw=localStorage.getItem("franja_v2"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=Object.assign({},DEF,o.cfg||{});}}catch(e){}
-function save(){try{localStorage.setItem("franja_v2",JSON.stringify(S));}catch(e){}}
+try{var raw=localStorage.getItem("franja_v3"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=Object.assign({},DEF,o.cfg||{});}}catch(e){}
+function save(){try{localStorage.setItem("franja_v3",JSON.stringify(S));}catch(e){}}
 function dayKey(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function today(){var k=dayKey(); if(!S.days[k])S.days[k]=[]; return S.days[k];}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -105,15 +105,15 @@ var bDia=document.getElementById("mode-dia"), bLibre=document.getElementById("mo
 var W=FW, scale=1, C={};
 function colors(){var cs=getComputedStyle(document.documentElement);["sky","hills","col","cap","floor","floor-line","token","ring","ink"].forEach(function(n){C[n]=cs.getPropertyValue("--"+n).trim();});}
 function resize(){var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,3); if(!r.height)return;
-  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d); scale=Math.min(r.width/FW,r.height/H);
-  var ox=(r.width-FW*scale)/2, oy=(r.height-H*scale)/2; ctx.setTransform(scale*d,0,0,scale*d,ox*d,oy*d);
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d); scale=Math.min(r.width/FW,r.height/(H+2*EDGE));
+  var ox=(r.width-FW*scale)/2, oy=(r.height-(H+2*EDGE)*scale)/2; ctx.setTransform(scale*d,0,0,scale*d,ox*d,(oy+EDGE*scale)*d);
   var hd=elScore.parentNode; hd.style.top=(oy+EDGE*scale+10)+"px"; hd.style.left=(ox+14)+"px"; hd.style.right=(ox+14)+"px";}
 new ResizeObserver(resize).observe(stage);
 new MutationObserver(colors).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",colors);
 colors(); resize();
 
-var state="ready", view="main", y=H*0.45, vy=0, cols=[], score=0, dist=0, rand=Math.random, nCol=0, deadAt=0, runIdx=-1, lastScore=null, t0=0;
+var state="ready", view="main", y=H/2, vy=0, ang=0, cols=[], score=0, dist=0, rand=Math.random, nCol=0, deadAt=0, runIdx=-1, lastScore=null, t0=0;
 function tokenX(){return 173;}
 function speed(){return Math.min(S.cfg.vmax, S.cfg.v0+S.cfg.inc*score);}
 function triesLeft(){return TRIES-today().length;}
@@ -124,7 +124,7 @@ function addCol(x){var c=S.cfg, gap=Math.max(c.gmin,c.gap-c.shr*nCol), lo=150+ga
 function start(){
   if(blocked())return;
   rand = Math.random;
-  cols=[]; nCol=0; score=0; y=H*0.45; vy=0; addCol(W+140);
+  cols=[]; nCol=0; score=0; y=H/2; vy=0; ang=0; addCol(W+S.cfg.v0*1.45);
   if(S.mode==="dia"){today().push(0); runIdx=today().length-1; save();} else runIdx=-1;
   state="play"; over.hidden=true; hud(); flap();
 }
@@ -134,27 +134,30 @@ function die(){
   S.hist.push(score); if(S.hist.length>200)S.hist.shift(); if(score>S.best)S.best=score;
   if(runIdx>=0)today()[runIdx]=score; save(); view="main"; panel();
 }
-function hit(c){var top=c.gy-c.gap/2, bot=c.gy+c.gap/2, tx=tokenX();
-  var nx=Math.max(c.x,Math.min(tx,c.x+CW)), dx=tx-nx;
-  var ny1=Math.min(y,top), d1=y-ny1; if(dx*dx+d1*d1<R*R) return true;
-  var ny2=Math.max(y,bot), d2=y-ny2; return dx*dx+d2*d2<R*R;}
+function overlap(rx,ry,rw,rh){
+  var c=Math.cos(ang), s=Math.sin(ang), hw=rw/2, hh=rh/2, dx=rx+hw-tokenX(), dy=ry+hh-y, ext=HS*(Math.abs(c)+Math.abs(s));
+  if(Math.abs(dx)>hw+ext||Math.abs(dy)>hh+ext)return false;
+  if(Math.abs(dx*c+dy*s)>HS+hw*Math.abs(c)+hh*Math.abs(s))return false;
+  return Math.abs(-dx*s+dy*c)<=HS+hw*Math.abs(s)+hh*Math.abs(c);}
+function hit(c){var top=c.gy-c.gap/2, bot=c.gy+c.gap/2;
+  return overlap(c.x,-50,CW,top+50)||overlap(c.x,bot,CW,H-bot+50);}
 function update(dt){
-  var v=speed(); vy=Math.min(S.cfg.vt,vy+S.cfg.g*dt); y+=vy*dt;
-  if(y-R<=EDGE){y=EDGE+R;die();return;}
+  var v=speed(); vy=Math.min(S.cfg.vt,vy+S.cfg.g*dt); y+=vy*dt; ang+=SPIN*dt;
+  var ext=HS*(Math.abs(Math.cos(ang))+Math.abs(Math.sin(ang)));
+  if(y-ext<=0||y+ext>=H){die();return;}
   dist+=v*dt;
   for(var i=0;i<cols.length;i++){var c=cols[i]; c.x-=v*dt;
-    if(!c.passed&&c.x+CW<tokenX()-R){c.passed=true;score++;if(runIdx>=0)today()[runIdx]=score;hud();}
+    if(!c.passed&&c.x+CW<tokenX()-HS){c.passed=true;score++;if(runIdx>=0)today()[runIdx]=score;hud();}
     if(hit(c)){die();return;}}
   if(cols.length&&cols[0].x<-CW-20)cols.shift();
   while(cols[cols.length-1].x<W+CW)addCol(cols[cols.length-1].x+S.cfg.sp);
-  if(y+R>=H-EDGE){y=H-EDGE-R;die();}
 }
 function hud(){elScore.textContent=score; elSpeed.textContent="Velocidad ×"+(speed()/S.cfg.v0).toFixed(2).replace(".",",");}
 
 function rr(x,yy,w,h,r){ctx.beginPath();ctx.roundRect(x,yy,w,h,r);ctx.fill();}
 function draw(now){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(0,-EDGE,W,H+2*EDGE); ctx.clip();
   ctx.fillStyle=C.sky; ctx.fillRect(0,0,W,H);
   ctx.fillStyle=C.hills; ctx.beginPath(); ctx.moveTo(0,H);
   for(var x=0;x<=W+20;x+=20){var p=x+dist*0.25; ctx.lineTo(x,H-120-40*Math.sin(p*0.011)-22*Math.sin(p*0.027+1));}
@@ -162,10 +165,10 @@ function draw(now){
   for(var i=0;i<cols.length;i++){var c=cols[i], top=c.gy-c.gap/2, bot=c.gy+c.gap/2;
     ctx.fillStyle=C.col; ctx.fillRect(c.x,0,CW,top); ctx.fillRect(c.x,bot,CW,H-bot);
     ctx.fillStyle=C.cap; ctx.fillRect(c.x,top-6,CW,6); ctx.fillRect(c.x,bot,CW,6);}
-  ctx.fillStyle=C.col; ctx.fillRect(0,0,W,EDGE); ctx.fillRect(0,H-EDGE,W,EDGE);
-  var ty=state==="ready"?H*0.45+8*Math.sin(now/260):y, tx=tokenX();
-  ctx.translate(tx,ty); ctx.rotate(state==="ready"?0:Math.max(-0.6,Math.min(1.2,vy/600)));
-  ctx.fillStyle=C.token; rr(-15.5,-15.5,31,31,6);
+  ctx.fillStyle=C.col; ctx.fillRect(0,-EDGE,W,EDGE); ctx.fillRect(0,H,W,EDGE);
+  var ty=state==="ready"?H/2+8*Math.sin(now/260):y, tx=tokenX();
+  ctx.translate(tx,ty); ctx.rotate(state==="ready"?0:ang);
+  ctx.fillStyle=C.token; rr(-15.6,-15.6,31.2,31.2,3);
   ctx.fillStyle=C.ring; rr(-7,-7,14,14,3);
   ctx.restore();
 }
@@ -182,7 +185,7 @@ function esc(n){return String(n);}
 function panel(){
   over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre");
   if(view==="cfg"){
-    card.innerHTML='<h2>Ajustes de física</h2><p>Valores medidos en un vídeo del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
+    card.innerHTML='<h2>Ajustes de física</h2><p>Valores medidos en una grabación del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
       FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
       '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
       '<div class="row"><button class="btn" id="b-reset" type="button">Valores iniciales</button><button class="btn go" id="b-back" type="button">Listo</button></div>';
