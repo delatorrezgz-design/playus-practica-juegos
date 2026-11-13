@@ -13,7 +13,8 @@ Minijuegos de práctica para entrenar antes de jugar los retos diarios. Cada jue
 
 Abre `index.html` (el menú) en el navegador del móvil, o activa GitHub Pages (Settings → Pages → Branch `main`, carpeta `/root`) y entra en la dirección que te da GitHub.
 
-- **Reto del día:** intentos limitados (Franja 3, Carriles 2), cuenta la mejor marca.
+- **Reto del día** (solo Franja): 3 intentos, cuenta la mejor marca.
+- **Carriles** no tiene límite de intentos: guarda récord, media de las últimas 10 partidas y un botón para reiniciar las estadísticas.
 - **Práctica libre:** intentos ilimitados.
 - **Ajustes:** gravedad, impulso, tamaño del hueco, velocidad… Los valores por defecto están medidos en un vídeo de una partida real.
 

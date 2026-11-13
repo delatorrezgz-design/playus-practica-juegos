@@ -39,6 +39,8 @@ body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:1
 .stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;background:var(--page);touch-action:none;cursor:pointer}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hud{position:absolute;inset:18px 16px auto;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.btn.clr{flex:none;font-size:13px;padding:8px;color:var(--muted)}
+.days div{font-size:10px}
 .score small{font-size:.4em;margin-left:3px}
 .score{font-family:var(--display);font-weight:800;font-size:54px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
 .chip{font:600 12px var(--body);color:var(--muted);background:var(--surface);border-radius:999px;padding:5px 10px;font-variant-numeric:tabular-nums}
@@ -74,10 +76,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 <div class="app">
   <div class="bar">
     <div class="name"><a class="home" href="../" aria-label="Volver al menú de juegos">‹</a> Carriles</div>
-    <div class="seg" role="group" aria-label="Modo de juego">
-      <button id="mode-dia" type="button">Reto del día</button>
-      <button id="mode-libre" type="button">Práctica libre</button>
-    </div>
   </div>
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
@@ -92,23 +90,20 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 /* Campo lógico 400x620. Distancias en metros del marcador. Cada coche lleva z = metros que le faltan para tocar al jugador
    (baja a la velocidad del juego). Su escala en pantalla es s = ZC/(ZC+z) y su altura y = YV + AY*s, tapada por el cambio
    de rasante en YH. Los coches están colocados en la carretera cada cierto número de metros y se ven desde DV metros antes. */
-var H=620, FW=400, STEP=1/120, TRIES=2, YH=328, YV=176, AY=267, CX=200, LANE=132, ZC=6.9, PW=96, EW=81;
-var DEF={v0:14.2,acc:0.68,vmax:60,tau:59,dv:18,first:67.4,g0:31.5,gk:2.4,gmin:15,dbl0:150,dbl:50,hitw:0.66,hitl:2.3}, CFGV=3;
-var FIELDS=[["v0","Velocidad inicial (m/s)",8,30,0.1],["acc","Aceleración (m/s cada segundo)",0,3,0.02],["vmax","Velocidad máxima (m/s)",20,90,1],
+var H=620, FW=400, STEP=1/120, YH=328, YV=176, AY=267, CX=200, LANE=132, ZC=7.5, PW=96, EW=81;
+var DEF={v0:14.1,acc:0.70,acc2:0.0117,vmax:40,tau:59,dv:18,first:67.4,g0:30.5,gk:2.7,gvar:3,gmin:15,dbl0:170,dbl:50,hitw:0.66,hitl:2.3}, CFGV=4;
+var FIELDS=[["v0","Velocidad inicial (m/s)",8,30,0.1],["acc","Aceleración (m/s cada segundo)",0,3,0.01],["acc2","Cuánto crece la aceleración",0,0.05,0.0001],["vmax","Velocidad máxima (m/s)",20,90,1],
   ["tau","Lentitud del cambio de carril (ms)",20,150,1],["dv","Desde cuántos metros se ve un coche",8,40,0.5],
-  ["first","Metros del primer coche",30,120,0.2],["g0","Metros entre oleadas al empezar",15,60,0.5],["gk","Metros que se acortan cada 100 m",0,6,0.1],["gmin","Metros entre oleadas, mínimo",6,40,0.5],
+  ["first","Metros del primer coche",30,120,0.2],["g0","Metros entre oleadas al empezar",15,60,0.5],["gk","Metros que se acortan cada 100 m",0,6,0.1],["gvar","Variación al azar entre oleadas (± m)",0,8,0.5],["gmin","Metros entre oleadas, mínimo",6,40,0.5],
   ["dbl0","Metros hasta la primera pareja",70,600,10],["dbl","Oleadas de dos coches, máximo (%)",0,90,5],
   ["hitw","Ancho de la zona de choque (carriles)",0.4,1,0.02],["hitl","Largo de la zona de choque (m)",0.8,4,0.1]];
 
-var S={best:0,hist:[],days:{},cfg:Object.assign({},DEF),mode:"dia"};
-try{var raw=localStorage.getItem("carriles_v1"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV; if(S.mode!=="dia")S.mode="libre"; if(S.snd===undefined)S.snd=true;}catch(e){}
+var S={best:0,hist:[],games:0,cfg:Object.assign({},DEF)};
+try{var raw=localStorage.getItem("carriles_v1"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV; if(S.snd===undefined)S.snd=true; if(!S.games)S.games=S.hist.length;}catch(e){}
 function save(){try{localStorage.setItem("carriles_v1",JSON.stringify(S));}catch(e){}}
-function dayKey(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-function today(){var k=dayKey(); if(!S.days[k])S.days[k]=[]; return S.days[k];}
 
 var stage=document.getElementById("stage"), cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 var elScore=document.getElementById("score"), elSpeed=document.getElementById("speed"), over=document.getElementById("over"), card=document.getElementById("card");
-var bDia=document.getElementById("mode-dia"), bLibre=document.getElementById("mode-libre");
 var scale=1, ox=0, C={};
 function colors(){var cs=getComputedStyle(document.documentElement);["sky","hills","col","cap","floor","floor-line","token","ring","ink","road","dash","glass"].forEach(function(n){C[n]=cs.getPropertyValue("--"+n).trim();});}
 function resize(){var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,3); if(!r.height)return;
@@ -121,26 +116,21 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",colors);
 colors(); resize();
 
 var PAINT=["#3d6fb0","#8a63c9","#c9a23a","#4f9a6c","#b8566f","#d9d3c7"];
-var state="ready", view="main", lane=1, px=1, cars=[], dist=0, tRun=0, nWave=0, nextAt=0, deadAt=0, runIdx=-1, lastScore=null, score=0, shake=0;
-function speed(){var c=S.cfg; return Math.min(c.vmax, c.v0+c.acc*tRun);}
-function triesLeft(){return TRIES-today().length;}
-function blocked(){return S.mode==="dia"&&triesLeft()<=0;}
-
+var state="ready", view="main", lane=1, px=1, cars=[], dist=0, tRun=0, nWave=0, nextAt=0, deadAt=0, lastScore=null, score=0, shake=0;
+function speed(){var c=S.cfg; return Math.min(c.vmax, c.v0+c.acc*tRun+c.acc2*tRun*tRun);}
 var DEMO=location.hash==="#demo", botAt=0;
 var KINDS=[["car",0],["car",1],["car",2],["car",3],["car",4],["van",5]];
 function wave(){
-  var c=S.cfg, at=nextAt, two=at>=c.dbl0&&Math.random()*100<Math.min(c.dbl,(at-c.dbl0)/3+25), ls;
+  var c=S.cfg, at=nextAt, two=at>=c.dbl0&&Math.random()*100<Math.min(c.dbl,30+(at-c.dbl0)*0.06), ls, stag=two&&Math.random()<0.3;
   if(nWave===0) ls=[1];
   else if(nWave===1) ls=[2];
   else if(two){var free=Math.floor(Math.random()*3); ls=[0,1,2].filter(function(l){return l!==free;});}
-  else ls=[Math.random()<0.5?lane:Math.floor(Math.random()*3)];
-  ls.forEach(function(l){var k=nWave===1?KINDS[5]:KINDS[Math.floor(Math.random()*KINDS.length)]; cars.push({lane:l,z:at-dist,van:k[0]==="van",col:PAINT[k[1]]});});
-  nWave++; nextAt=at+(nWave===1?31.2:Math.max(c.gmin,c.g0-c.gk*at/100));
+  else ls=[Math.floor(Math.random()*3)];
+  ls.forEach(function(l,i){var k=nWave===0?KINDS[2]:nWave===1?KINDS[5]:KINDS[Math.floor(Math.random()*KINDS.length)]; cars.push({lane:l,z:at-dist+(stag&&i?2:0),van:k[0]==="van",col:PAINT[k[1]]});});
+  nWave++; nextAt=at+(nWave===1?31.1:Math.max(c.gmin,c.g0-c.gk*at/100)+(Math.random()*2-1)*c.gvar);
 }
 function start(){
-  if(blocked())return;
   cars=[]; nWave=0; dist=0; tRun=0; score=0; lane=1; px=1; nextAt=S.cfg.first; shake=0; botAt=0;
-  if(S.mode==="dia"){today().push(0); runIdx=today().length-1; save();} else runIdx=-1;
   state="play"; over.hidden=true; hud();
 }
 var AC=null;
@@ -150,8 +140,8 @@ function tone(f,f2,dur,vol,type){ if(!S.snd)return; try{ AC=AC||new (window.Audi
 function move(d){var n=Math.max(0,Math.min(2,lane+d)); if(n===lane)return; lane=n; tone(175,120,0.12,0.3,"triangle");}
 function die(){
   state="dead"; deadAt=performance.now(); lastScore=score; if(DEMO)console.log("demo "+score+" m en "+tRun.toFixed(1)+" s, "+speed().toFixed(1)+" m/s, oleadas "+nWave); shake=1; tone(160,40,0.35,0.4,"sawtooth");
-  S.hist.push(score); if(S.hist.length>200)S.hist.shift(); if(score>S.best)S.best=score;
-  if(runIdx>=0)today()[runIdx]=score; save(); view="main"; panel();
+  S.hist.push(score); if(S.hist.length>50)S.hist.shift(); S.games++; if(score>S.best)S.best=score;
+  save(); view="main"; panel();
 }
 function update(dt){
   var c=S.cfg, v=speed();
@@ -165,7 +155,7 @@ function update(dt){
   for(var i=cars.length-1;i>=0;i--){var e=cars[i]; e.z-=v*dt;
     if(e.z<=0&&e.z>=-c.hitl&&Math.abs(px-e.lane)<c.hitw){die();return;}
     if(e.z<-4.3)cars.splice(i,1);}
-  var s=Math.floor(dist); if(s!==score){score=s; if(runIdx>=0)today()[runIdx]=score; hud();}
+  var s=Math.floor(dist); if(s!==score){score=s; hud();}
 }
 function hud(){elScore.innerHTML=score+"<small>m</small>"; elSpeed.textContent="Velocidad "+speed().toFixed(1).replace(".",",")+" m/s";}
 
@@ -213,11 +203,10 @@ function frame(now){
 }
 
 function avg(){var h=S.hist.slice(-10); if(!h.length)return "–"; return Math.round(h.reduce(function(a,b){return a+b;},0)/h.length);}
-function dayBest(k){var a=S.days[k]; return a&&a.length?Math.max.apply(null,a):null;}
 function panel(){
-  over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre");
+  over.hidden=false;
   if(view==="cfg"){
-    card.innerHTML='<h2>Ajustes</h2><p>Velocidad, cambio de carril, aviso, zona de choque y los dos primeros coches están medidos en grabaciones reales a 60 fps. La separación entre oleadas y las parejas salen de un vídeo menos fiable. Se guardan en este móvil.</p>'+
+    card.innerHTML='<h2>Ajustes</h2><p>Valores medidos en grabaciones del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
       FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
       '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
       '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al cambiar de carril y al chocar</label>'+
@@ -228,27 +217,22 @@ function panel(){
     document.getElementById("b-back").onclick=function(){view="main";panel();};
     return;
   }
-  var dia=S.mode==="dia", left=triesLeft(), tb=dayBest(dayKey()), html="";
-  if(state==="dead"&&lastScore!==null){
-    html+='<div><div class="lbl">'+(lastScore>=S.best&&lastScore>0?"Nuevo récord":"Metros")+'</div><div class="big">'+lastScore+'</div></div>';
-  } else {
-    html+='<h2>'+(dia?"Reto del día":"Práctica libre")+'</h2>';
-  }
-  if(dia) html+='<p>'+(left>0?(left===TRIES?"Tienes "+TRIES+" intentos. Cuenta tu mejor marca del día.":"Te queda"+(left>1?"n ":" ")+left+" intento"+(left>1?"s":"")+" hoy. Cuenta tu mejor marca."):"Has gastado los "+TRIES+" intentos de hoy. Marca del día: "+tb+" m. Sigue entrenando en práctica libre.")+'</p>';
-  else if(state!=="dead") html+='<p>Intentos ilimitados. Toca el lado izquierdo o derecho para cambiar un carril cada vez y esquiva los coches. Cada vez vas más rápido, los coches llegan más juntos y a veces de dos en dos.</p>';
-  html+='<dl class="stats"><div><dt>Récord</dt><dd>'+S.best+'</dd></div><div><dt>Media 10</dt><dd>'+avg()+'</dd></div><div><dt>Hoy</dt><dd>'+(tb===null?"–":tb)+'</dd></div></dl>';
-  var ds=[],mx=1,i; for(i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=dayKey(d),b=dayBest(k);ds.push([d,b,i===0]);if(b>mx)mx=b;}
-  html+='<div><div class="lbl">Reto del día, últimos 7 días</div><div class="days">'+ds.map(function(e){return '<div'+(e[2]?' class="today"':'')+'><span>'+(e[1]===null?"·":e[1])+'</span><i style="height:'+(e[1]?Math.round(e[1]/mx*30)+2:2)+'px"></i><span>'+"DLMXJVS"[e[0].getDay()]+'</span></div>';}).join("")+'</div></div>';
-  html+='<div class="row"><button class="btn" id="b-cfg" type="button">Ajustes</button>'+
-    (blocked()?'<button class="btn go" id="b-libre" type="button">Práctica libre</button>':'<button class="btn go" id="b-go" type="button">'+(state==="dead"?"Otra vez":"Jugar")+'</button>')+'</div>';
+  var html="", h=S.hist.slice(-10), mx=Math.max.apply(null,h.concat([1])), i;
+  if(state==="dead"&&lastScore!==null) html+='<div><div class="lbl">'+(lastScore>=S.best&&lastScore>0?"Nuevo récord":"Metros")+'</div><div class="big">'+lastScore+'</div></div>';
+  else html+='<h2>Carriles</h2><p>Toca el lado izquierdo o derecho para cambiar un carril cada vez y esquiva los coches. Cada vez vas más rápido, llegan más juntos y a veces de dos en dos.</p>';
+  html+='<dl class="stats"><div><dt>Récord</dt><dd>'+S.best+'</dd></div><div><dt>Media 10</dt><dd>'+avg()+'</dd></div><div><dt>Partidas</dt><dd>'+S.games+'</dd></div></dl>';
+  html+='<div><div class="lbl">Últimas 10 partidas</div><div class="days">';
+  for(i=0;i<10;i++){var v=h[i-(10-h.length)]; html+='<div'+(i===9&&v!==undefined?' class="today"':'')+'><span>'+(v===undefined?"·":v)+'</span><i style="height:'+(v?Math.round(v/mx*30)+2:2)+'px"></i></div>';}
+  html+='</div></div>';
+  html+='<div class="row"><button class="btn" id="b-cfg" type="button">Ajustes</button><button class="btn go" id="b-go" type="button">'+(state==="dead"?"Otra vez":"Jugar")+'</button></div>';
+  html+='<button class="btn clr" id="b-clr" type="button">Reiniciar estadísticas</button>';
   card.innerHTML=html;
   document.getElementById("b-cfg").onclick=function(){view="cfg";panel();};
-  var go=document.getElementById("b-go"); if(go)go.onclick=start;
-  var bl=document.getElementById("b-libre"); if(bl)bl.onclick=function(){setMode("libre");};
+  document.getElementById("b-go").onclick=start;
+  var clr=document.getElementById("b-clr"), armed=false;
+  clr.onclick=function(){ if(!armed){armed=true; clr.textContent="¿Borrar récord, media y partidas? Toca otra vez"; return;}
+    S.hist=[]; S.best=0; S.games=0; save(); state="ready"; lastScore=null; cars=[]; score=0; dist=0; tRun=0; lane=1; px=1; hud(); panel(); };
 }
-function setMode(m){if(state==="play")return; S.mode=m; save(); state="ready"; lastScore=null; cars=[]; score=0; dist=0; tRun=0; lane=1; px=1; view="main"; hud(); panel();}
-bDia.onclick=function(){setMode("dia");}; bLibre.onclick=function(){setMode("libre");};
-
 function tap(dir){
   if(state==="play"){move(dir);return;}
   if(view==="cfg")return;
