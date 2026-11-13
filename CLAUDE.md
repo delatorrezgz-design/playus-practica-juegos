@@ -33,14 +33,21 @@ El usuario sube grabaciones de pantalla del juego real. Lo que funcionó:
 
 Pedirle intentos "de prueba" baratos: un solo toque y dejar caer, y otro más largo para la progresión. La app tiene modo práctica, pero su recorrido no coincide con el de los intentos reales.
 
-## Estado de Carriles (primera versión)
+## Estado de Carriles (segunda versión)
 
-Medido en una grabación a 60 fps del modo práctica (dos intentos de 67 m, sin esquivar ningún coche):
-velocidad inicial 15,8 m/s (el marcador son metros); carriles a 357 px de separación en pantalla de 1080; cambio de carril
-exponencial con constante de 59 ms (cada fotograma recorre ~24,5 % de lo que falta); el primer coche aparece en el carril
-central a los 50 m y tarda 1,11 s en llegar; su tamaño crece ×4 siguiendo 1/(0,37 s + tiempo restante); el choque salta al
-primer contacto; las rayas de la carretera corren ~4 veces más rápido que se acercan los coches.
+Medido en tres grabaciones a 60 fps del modo práctica (ocho intentos cortos, hasta 98 m):
 
-Estimado a ojo con un vídeo de TikTok (923 m en ~27 s, no fiable para medir): aceleración, velocidad máxima, separación
-entre oleadas, cuándo empiezan las parejas, cuánto se acorta el aviso con la velocidad y la zona de choque (ancho y largo).
-Falta una grabación propia larga, esquivando coches, para medir todo eso.
+- Velocidad: 14,2 m/s al empezar, subiendo 0,68 m/s cada segundo (67 m a los 4,3 s y 98 m a los 6,0 s). El marcador son metros.
+- Carriles a 357 px en pantalla de 1080. Cambio de carril exponencial con constante de 59 ms (cada fotograma ~24,5 % de lo que falta).
+  Un segundo toque durante el movimiento cuenta y redirige al instante; así se cruzan dos carriles.
+- En práctica el arranque es siempre igual: primer coche en el carril central (choque a los 67 m) y segundo, una furgoneta,
+  en el derecho (choque a los 98 m, 1,75 s después).
+- Aviso: 1,09 s desde que asoma hasta que toca. Tamaño en pantalla = 0,40/(0,40 + segundos que faltan); altura en pantalla lineal
+  con ese tamaño (px reales: y = 1082 + 720·s), tapada por el cambio de rasante en y = 1492.
+- Zona de choque: de lado, a menos de ~0,66 carriles del centro del coche (0,60 choca, 0,72 no). En el tiempo, desde el primer contacto
+  hasta ~0,13 s después (a 0,10 s todavía choca de lado; a 0,17 s ya se puede entrar en su carril).
+- Las rayas de la carretera corren ~4 veces más rápido que se acercan los coches.
+
+Estimado (vídeo de TikTok, no fiable): cuánto crece la aceleración, velocidad máxima, separación entre oleadas a partir de la tercera,
+cuándo empiezan las parejas, cuánto se acorta el aviso con la velocidad y en qué carril sale cada coche después del segundo.
+Falta una partida larga propia para medirlo. El detector de cambios del marcador cuenta ~12 % de más: usar la marca final y el tiempo.

@@ -89,14 +89,15 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 <script>
 (function(){
 "use strict";
-/* Campo lógico 400x620. Horizonte en YH; el plano del jugador (morro) en YP. Distancias en metros del marcador.
-   Proyección: escala s = ZC/(ZC+z), con z = metros por delante del morro del jugador. */
-var H=620, FW=400, STEP=1/120, TRIES=2, YH=328, YP=431, CX=200, LANE=132, ZC=5.8, DSPAWN=17.5, PW=96, EW=85;
-var DEF={v0:15.8,tacc:3,acc:1.9,vmax:55,tau:59,tvis:1.11,pvis:0.5,first:49.5,g0:1.2,gdec:0.02,gmin:0.7,dbl:60,hitw:0.7,hitl:4.4}, CFGV=1;
-var FIELDS=[["v0","Velocidad inicial (m/s)",8,30,0.1],["tacc","Segundos antes de acelerar",0,10,0.5],["acc","Aceleración (m/s cada segundo)",0,5,0.1],["vmax","Velocidad máxima (m/s)",20,90,1],
+/* Campo lógico 400x620. Horizonte en YH; el morro del jugador en s=1. Distancias en metros del marcador.
+   Cada coche lleva tau = segundos que le faltan para tocar al jugador (a velocidad inicial). Su escala en pantalla es
+   s = TC/(TC+tau) (medido: 1/ancho baja en línea recta con el tiempo) y su altura y = YV + AY*s, tapada por el cambio de rasante en YH. */
+var H=620, FW=400, STEP=1/120, TRIES=2, YH=328, YV=176, AY=267, CX=200, LANE=132, TC=0.4, PW=96, EW=81;
+var DEF={v0:14.2,acc:0.68,acc2:0.03,vmax:55,tau:59,tvis:1.09,pvis:0.5,first:51,g0:1.75,gdec:0.04,gmin:0.7,dbl:60,hitw:0.66,hitd:0.13}, CFGV=2;
+var FIELDS=[["v0","Velocidad inicial (m/s)",8,30,0.1],["acc","Aceleración (m/s cada segundo)",0,3,0.02],["acc2","Cuánto crece la aceleración",0,0.1,0.005],["vmax","Velocidad máxima (m/s)",20,90,1],
   ["tau","Lentitud del cambio de carril (ms)",20,150,1],["tvis","Tiempo de aviso al empezar (s)",0.5,2,0.01],["pvis","Cuánto se acorta el aviso con la velocidad",0,1,0.05],
   ["first","Metros hasta el primer coche",20,120,0.5],["g0","Separación entre oleadas al empezar (s)",0.6,2.5,0.05],["gdec","Reducción por oleada (s)",0,0.08,0.005],["gmin","Separación mínima (s)",0.3,1.5,0.05],
-  ["dbl","Oleadas de dos coches, máximo (%)",0,90,5],["hitw","Ancho de la zona de choque (carriles)",0.4,1,0.02],["hitl","Largo de la zona de choque (m)",1,4.4,0.1]];
+  ["dbl","Oleadas de dos coches, máximo (%)",0,90,5],["hitw","Ancho de la zona de choque (carriles)",0.4,1,0.02],["hitd","Duración de la zona de choque (s)",0.05,0.24,0.01]];
 
 var S={best:0,hist:[],days:{},cfg:Object.assign({},DEF),mode:"dia"};
 try{var raw=localStorage.getItem("carriles_v1"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV; if(S.mode!=="dia")S.mode="libre"; if(S.snd===undefined)S.snd=true;}catch(e){}
@@ -119,18 +120,19 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",colors);
 colors(); resize();
 
 var PAINT=["#3d6fb0","#8a63c9","#c9a23a","#4f9a6c","#b8566f"];
-var state="ready", view="main", lane=1, px=1, cars=[], dist=0, tRun=0, nWave=0, nextAt=0, deadAt=0, runIdx=-1, lastScore=null, score=0, shake=0;
-function speed(){var c=S.cfg; return Math.min(c.vmax, c.v0+c.acc*Math.max(0,tRun-c.tacc));}
-function approach(){var c=S.cfg; return DSPAWN/c.tvis*Math.pow(speed()/c.v0,c.pvis);}
+var state="ready", view="main", lane=1, px=1, cars=[], dist=0, tRun=0, tOff=0, nWave=0, nextAt=0, deadAt=0, runIdx=-1, lastScore=null, score=0, shake=0;
+function speed(){var c=S.cfg; return Math.min(c.vmax, c.v0+c.acc*tRun+c.acc2*tRun*tRun);}
+function approach(){var c=S.cfg; return Math.pow(speed()/c.v0,c.pvis);}
 function triesLeft(){return TRIES-today().length;}
 function blocked(){return S.mode==="dia"&&triesLeft()<=0;}
 
 function wave(){
   var c=S.cfg, two=nWave>=5&&Math.random()*100<Math.min(c.dbl,(nWave-4)*6), ls;
   if(nWave===0) ls=[1];
+  else if(nWave===1) ls=[2];
   else if(two){var free=Math.floor(Math.random()*3); ls=[0,1,2].filter(function(l){return l!==free;});}
   else ls=[Math.random()<0.5?lane:Math.floor(Math.random()*3)];
-  ls.forEach(function(l){cars.push({lane:l,z:DSPAWN,col:PAINT[Math.floor(Math.random()*PAINT.length)]});});
+  ls.forEach(function(l){cars.push({lane:l,tau:c.tvis,col:PAINT[Math.floor(Math.random()*PAINT.length)]});});
   nWave++; nextAt=tRun+Math.max(c.gmin,c.g0-c.gdec*nWave);
 }
 function start(){
@@ -151,19 +153,19 @@ function die(){
 }
 function update(dt){
   var c=S.cfg, v=speed(), r=approach();
-  tRun+=dt; dist+=v*dt;
+  tRun+=dt; dist+=v*dt; tOff+=r*dt;
   px+=(lane-px)*(1-Math.exp(-dt*1000/c.tau));
   if(nWave===0){ if(dist>=c.first) wave(); } else if(tRun>=nextAt) wave();
-  for(var i=cars.length-1;i>=0;i--){var e=cars[i]; e.z-=r*dt;
-    if(e.z<=0&&e.z>=-c.hitl&&Math.abs(px-e.lane)<c.hitw){die();return;}
-    if(e.z<-4.6)cars.splice(i,1);}
+  for(var i=cars.length-1;i>=0;i--){var e=cars[i]; e.tau-=r*dt;
+    if(e.tau<=0&&e.tau>=-c.hitd&&Math.abs(px-e.lane)<c.hitw){die();return;}
+    if(e.tau<-0.25)cars.splice(i,1);}
   var s=Math.floor(dist); if(s!==score){score=s; if(runIdx>=0)today()[runIdx]=score; hud();}
 }
 function hud(){elScore.innerHTML=score+"<small>m</small>"; elSpeed.textContent="Velocidad "+speed().toFixed(1).replace(".",",")+" m/s";}
 
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
-function sOf(z){return ZC/(ZC+z);}
-function gy(z){return YH+(YP-YH)*sOf(z);}
+function sOf(tau){return TC/(TC+tau);}
+function gy(s){return Math.max(YH+2,YV+AY*s);}
 function car(cx,bottom,w,body,front){
   var h=w*0.6;
   ctx.fillStyle=C.glass; rr(cx-w*0.46,bottom-w*0.12,w*0.2,w*0.14,w*0.03); rr(cx+w*0.26,bottom-w*0.12,w*0.2,w*0.14,w*0.03);
@@ -173,7 +175,7 @@ function car(cx,bottom,w,body,front){
   ctx.globalAlpha=0.25; ctx.fillStyle=C.glass; rr(cx-w/2,bottom-h*0.3,w,h*0.2,w*0.04); ctx.globalAlpha=1;
 }
 function draw(now){
-  var i,z,s;
+  var i,s;
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
   ctx.save(); ctx.beginPath(); ctx.rect(0,0,FW,H); ctx.clip();
   if(shake>0.02){ctx.translate(Math.sin(now/18)*6*shake,Math.cos(now/23)*4*shake); shake*=0.92;}
@@ -182,18 +184,18 @@ function draw(now){
   for(var x=-10;x<=FW+20;x+=20){ctx.lineTo(x,YH-70-34*Math.sin(x*0.013+1)-18*Math.sin(x*0.031));}
   ctx.lineTo(FW+20,YH); ctx.closePath(); ctx.fill();
   ctx.fillStyle=C.floor; ctx.fillRect(-10,YH,FW+20,H-YH+10);
-  // calzada: 3 carriles, bordes a ±1,5 carriles
-  var sn=3, yb=YH+(YP-YH)*sn;
-  ctx.fillStyle=C.road; ctx.beginPath(); ctx.moveTo(CX-LANE*1.5*0.03,YH+3); ctx.lineTo(CX+LANE*1.5*0.03,YH+3); ctx.lineTo(CX+LANE*1.5*sn,yb); ctx.lineTo(CX-LANE*1.5*sn,yb); ctx.closePath(); ctx.fill();
-  // rayas: periodo 21 m, raya de 7 m; la carretera corre ~4 veces más deprisa que se acercan los coches (medido)
-  var off=(dist*4)%21; ctx.fillStyle=C.dash;
-  for(z=84-off; z>-10.6; z-=21){ var z1=Math.max(-3.6,z), z0=z+7; if(z0<-3.6)continue; var s0=sOf(z0), s1=sOf(z1), y0=YH+(YP-YH)*s0, y1=YH+(YP-YH)*s1;
-    for(i=-1;i<=1;i+=2){ctx.beginPath(); ctx.moveTo(CX+i*LANE/2*s0-3*s0,y0); ctx.lineTo(CX+i*LANE/2*s0+3*s0,y0); ctx.lineTo(CX+i*LANE/2*s1+3*s1,y1); ctx.lineTo(CX+i*LANE/2*s1-3*s1,y1); ctx.closePath(); ctx.fill();}}
-  var sorted=cars.slice().sort(function(a,b){return b.z-a.z;}), drawn=false;
+  // calzada: 3 carriles, bordes a ±1,5 carriles; por encima del cambio de rasante no se ve
+  var s0=(YH-YV)/AY, sn=1.9;
+  ctx.fillStyle=C.road; ctx.beginPath(); ctx.moveTo(CX-LANE*1.5*s0,YH); ctx.lineTo(CX+LANE*1.5*s0,YH); ctx.lineTo(CX+LANE*1.5*sn,gy(sn)); ctx.lineTo(CX-LANE*1.5*sn,gy(sn)); ctx.closePath(); ctx.fill();
+  // rayas: en "segundos de distancia" (u = TC/s). Corren ~4 veces más deprisa que se acercan los coches (medido)
+  var per=1.3, off=(tOff*4)%per, u; ctx.fillStyle=C.dash;
+  for(u=TC/sn-per+off; u<TC/s0; u+=per){ var ua=Math.max(TC/sn,u), ub=Math.min(TC/s0,u+per*0.33); if(ub<=ua)continue; var sa=TC/ua, sb=TC/ub;
+    for(i=-1;i<=1;i+=2){ctx.beginPath(); ctx.moveTo(CX+i*LANE/2*sb-3*sb,gy(sb)); ctx.lineTo(CX+i*LANE/2*sb+3*sb,gy(sb)); ctx.lineTo(CX+i*LANE/2*sa+3*sa,gy(sa)); ctx.lineTo(CX+i*LANE/2*sa-3*sa,gy(sa)); ctx.closePath(); ctx.fill();}}
+  var sorted=cars.slice().sort(function(a,b){return b.tau-a.tau;}), drawn=false;
   function player(){ var pxs=CX+(px-1)*LANE, tilt=(lane-px)*0.22, bob=state==="ready"?2*Math.sin(now/260):0;
-    ctx.save(); ctx.translate(pxs,YP+93+bob); ctx.rotate(tilt); car(0,0,PW,C.token,false); ctx.restore(); drawn=true; }
-  for(i=0;i<sorted.length;i++){var e=sorted[i]; if(!drawn&&e.z<-1.5)player(); if(ZC+e.z<1)continue; s=sOf(e.z);
-    ctx.globalAlpha=Math.min(1,(DSPAWN-e.z)/1.5+0.15); car(CX+(e.lane-1)*LANE*s,YH+(YP-YH)*s,EW*s,e.col,true); ctx.globalAlpha=1;}
+    ctx.save(); ctx.translate(pxs,518+bob); ctx.rotate(tilt); car(0,0,PW,C.token,false); ctx.restore(); drawn=true; }
+  for(i=0;i<sorted.length;i++){var e=sorted[i]; if(!drawn&&e.tau<-0.07)player(); s=sOf(e.tau);
+    ctx.globalAlpha=Math.min(1,(S.cfg.tvis-e.tau)/0.1+0.15); car(CX+(e.lane-1)*LANE*s,gy(s),EW*s,e.col,true); ctx.globalAlpha=1;}
   if(!drawn)player();
   ctx.restore();
 }
@@ -209,7 +211,7 @@ function dayBest(k){var a=S.days[k]; return a&&a.length?Math.max.apply(null,a):n
 function panel(){
   over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre");
   if(view==="cfg"){
-    card.innerHTML='<h2>Ajustes</h2><p>Velocidad inicial, cambio de carril, aviso y primer coche están medidos en una grabación real; el resto son estimaciones hasta tener una partida larga. Se guardan en este móvil.</p>'+
+    card.innerHTML='<h2>Ajustes</h2><p>Los primeros 100 metros (velocidad, cambio de carril, aviso, zona de choque y los dos primeros coches) están medidos en grabaciones reales; lo que pasa después es una estimación hasta tener una partida larga. Se guardan en este móvil.</p>'+
       FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
       '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
       '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al cambiar de carril y al chocar</label>'+
