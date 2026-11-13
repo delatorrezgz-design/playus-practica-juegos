@@ -16,7 +16,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - Física a paso fijo de 1/120 s con integración exacta (`y += v*dt + g*dt²/2`).
 - Marcas y ajustes en `localStorage`, siempre con try/catch. Si cambian los valores por defecto, sube `CFGV` para que se apliquen sin borrar las marcas.
 - Panel de Ajustes con un deslizador por parámetro físico y botón "Valores iniciales".
-- Modos: reto del día (3 intentos, cuenta el mejor) y práctica libre.
+- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles: solo práctica, con récord, media de las últimas 10 partidas y botón "Reiniciar estadísticas" (el usuario lo pidió así).
 
 ## Cómo calibrar un juego con un vídeo
 
@@ -33,34 +33,32 @@ El usuario sube grabaciones de pantalla del juego real. Lo que funcionó:
 
 Pedirle intentos "de prueba" baratos: un solo toque y dejar caer, y otro más largo para la progresión. La app tiene modo práctica, pero su recorrido no coincide con el de los intentos reales.
 
-## Estado de Carriles (tercera versión)
+## Estado de Carriles (cuarta versión, calibrada con una partida real de 438 m)
 
 El juego funciona en metros: los coches están colocados en la carretera y se acercan a la velocidad del jugador.
 `carriles/index.html#demo` activa un piloto automático para probar partidas largas (escribe la marca en la consola).
 
-Medido en tres grabaciones propias a 60 fps del modo práctica (ocho intentos cortos, hasta 98 m):
+Medido en grabaciones propias a 60 fps (ocho intentos cortos de práctica y una partida de 438 m en 19,55 s):
 
-- Velocidad: 14,2 m/s al empezar, subiendo 0,68 m/s cada segundo (67 m a los 4,3 s y 98 m a los 6,0 s). El marcador son metros.
+- Velocidad: v = 14,1 + 0,70·t + 0,0117·t² m/s (ajuste al marcador leído metro a metro, error típico 0,2 m).
+  A los 19 s va a 31,5 m/s. El marcador son metros.
 - Carriles a 357 px en pantalla de 1080. Cambio de carril exponencial con constante de 59 ms (cada fotograma ~24,5 % de lo que falta).
   Un segundo toque durante el movimiento cuenta y redirige al instante; así se cruzan dos carriles.
-- En práctica el arranque es siempre igual: primer coche en el carril central (choque a los 67 m) y segundo, una furgoneta,
-  en el derecho (choque a los 98 m).
-- Un coche se ve desde ~18 m antes (1,09 s al principio). Tamaño en pantalla = 6,9/(6,9 + metros que faltan); altura en pantalla
-  lineal con ese tamaño (px reales: y = 1082 + 720·s), tapada por el cambio de rasante en y = 1492.
+- El arranque es siempre igual (práctica y partida larga): primer coche en el carril central (choque a los 67 m) y segundo,
+  una furgoneta, en el derecho (choque a los 98 m). Después el carril es al azar y no depende de dónde esté el jugador.
+- Metros a los que llegó cada oleada en la partida larga: 67, 98, 124, 148, 176, 200, 228 (pareja), 252, 272 (pareja), 297,
+  319 (pareja izquierda+derecha), 338, 361, 378, 400, 420, 438 (pareja). Separación ≈ 30,5 − 2,7 por cada 100 m, ± 3 m al azar.
+- Parejas: 4 de las 11 oleadas a partir de los 228 m; pueden ser carriles no contiguos y a veces un coche va ~2 m por detrás.
+- Los coches se acercan a la velocidad del marcador (el tiempo entre dos líneas de la pantalla baja al subir la velocidad).
+  Se ven desde ~18 m antes. Tamaño en pantalla ≈ 7,5/(7,5 + metros que faltan); altura lineal con ese tamaño
+  (px reales: y = 1082 + 720·s), tapada por el cambio de rasante en y = 1492.
 - Zona de choque: de lado, a menos de ~0,66 carriles del centro del coche (0,60 choca, 0,72 no). A lo largo, desde el primer contacto
-  hasta ~2,3 m después (0,13 s a 17 m/s; a 0,10 s todavía choca de lado, a 0,17 s ya se puede entrar en su carril).
+  hasta ~2,3 m después.
+- Vehículos: coche naranja, furgoneta blanca (más alta), ranchera azul, coche beige. Todos ocupan un carril y miden parecido.
 - Las rayas de la carretera corren ~4 veces más rápido que se acercan los coches.
 
-Sacado de un vídeo de TikTok de 923 m (30 fps, marcador medio tapado). Está a velocidad real hasta ~95 m y acelerado ×1,5 después;
-corregido eso, coincide con lo medido (misma velocidad inicial, primer coche en el centro a 67 m, segundo en el derecho a ~96 m):
+Sin medir (sale de un vídeo de TikTok de 923 m, acelerado ~×1,3 desde los 95 m): separación mínima de ~15 m entre oleadas
+hacia los 850 m, la mitad de oleadas en pareja al final, y una posible velocidad máxima hacia 40 m/s.
 
-- La aceleración sigue constante en 0,68 m/s² hasta al menos 800 m (v² = 14,2² + 2·0,68·metros). No se ve velocidad máxima clara.
-- El aviso es una distancia fija (~17 m), así que el tiempo de reacción baja al subir la velocidad.
-- Las oleadas van por metros: ~31, 30, 26, 26… m al principio, ~18 m hacia los 500 m y ~15 m hacia los 850 m.
-- Primera pareja hacia los 175 m; después más o menos la mitad de las oleadas son parejas. Nunca tres coches a la vez.
-- Vehículos: coche naranja, furgoneta blanca (más alta), ranchera azul, coche beige. Todos ocupan un carril; no se ve que
-  cambie la zona de choque, pero no está medido.
-
-Pendiente de una partida larga propia: confirmar aceleración y separación entre oleadas, si hay velocidad máxima, si la furgoneta
-choca distinto, y si el orden de los coches en modo real es el mismo que en práctica.
-El detector de cambios del marcador cuenta ~12 % de más: usar la marca final y el tiempo.
+Leer el marcador: umbral de blanco (canal mínimo > 210), separar dígitos por columnas y compararlos con plantillas
+(`ocr.py` de la sesión); da el metro exacto de cada fotograma.
