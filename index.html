@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f3a5f">
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
-<title>Franja</title>
+<title>Práctica de juegos</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,600&display=swap">
 <style>
 /* Layout: one-screen app. Thin top bar, the playfield fills the rest, a single card floats over it between runs. */
@@ -32,6 +32,7 @@ body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:1
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .name{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.home{color:var(--muted);text-decoration:none;padding:4px 8px 4px 0}
 .seg{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
 .seg button{border:0;background:none;color:var(--muted);font:600 13px var(--body);padding:7px 12px;white-space:nowrap;border-radius:999px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
@@ -65,175 +66,31 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .field input{width:100%;accent-color:var(--token);margin:0}
 .snd{display:flex;align-items:center;gap:8px;font-size:14px}
 .snd input{accent-color:var(--token);width:18px;height:18px;margin:0}
+.games{display:flex;flex-direction:column;gap:12px}
+.game{display:flex;align-items:center;gap:14px;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px;color:var(--ink);text-decoration:none}
+.game:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+.game svg{flex:none;width:64px;height:64px;border-radius:12px}
+.game h2{margin:0;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.game p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.game span.go{margin-left:auto;font-size:24px;color:var(--muted)}
+.intro{margin:0;color:var(--muted)}
+body{-webkit-user-select:auto;user-select:auto}
 </style>
-
 </head>
 <body>
 <div class="app">
-  <div class="bar">
-    <div class="name">Franja</div>
-    <div class="seg" role="group" aria-label="Modo de juego">
-      <button id="mode-dia" type="button">Reto del día</button>
-      <button id="mode-libre" type="button">Práctica libre</button>
-    </div>
-  </div>
-  <div class="stage" id="stage">
-    <canvas id="cv"></canvas>
-    <div class="hud"><div class="score" id="score">0</div><div class="chip" id="speed">Velocidad ×1,00</div></div>
-    <div class="over" id="over"><div class="card" id="card"></div></div>
+  <div class="bar"><div class="name">Práctica de juegos</div></div>
+  <p class="intro">Elige un juego para entrenar. Las marcas se guardan en este móvil.</p>
+  <div class="games">
+    <a class="game" href="franja/">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="var(--sky)"/><rect x="38" width="12" height="20" fill="var(--col)"/><rect x="38" y="46" width="12" height="18" fill="var(--col)"/><rect x="12" y="26" width="13" height="13" rx="2" fill="var(--token)" transform="rotate(18 18 32)"/></svg>
+      <div><h2>Franja</h2><p>Toca para subir y pasa por el hueco de cada columna.</p></div><span class="go" aria-hidden="true">›</span>
+    </a>
+    <a class="game" href="carriles/">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="var(--floor)"/><rect width="64" height="22" fill="var(--sky)"/><path d="M28 22h8l26 42H2z" fill="var(--col)"/><rect x="25" y="42" width="14" height="10" rx="2" fill="var(--token)"/><rect x="36" y="27" width="7" height="5" rx="1" fill="var(--cap)"/></svg>
+      <div><h2>Carriles</h2><p>Tres carriles: toca a izquierda o derecha y esquiva los coches.</p></div><span class="go" aria-hidden="true">›</span>
+    </a>
   </div>
 </div>
-
-<script>
-(function(){
-"use strict";
-var H=620, FW=400, STEP=1/120, CW=53, HS=15.4, SPIN=2.95, EDGE=10, TRIES=3;
-var DEF={g:1500,j:435,vt:1500,gap:200.5,shr:3.3,gmin:62,sp:276,v0:192,inc:3.75,vmax:420}, CFGV=5;
-var FIELDS=[["g","Gravedad",1000,2600,10],["j","Impulso de cada toque",300,800,5],["vt","Caída máxima",500,1500,10],
-  ["gap","Alto de la franja al empezar",120,260,0.5],["shr","Estrechamiento por columna",0,8,0.1],["gmin","Franja mínima",45,200,1],
-  ["sp","Distancia entre columnas",180,380,1],["v0","Velocidad inicial",100,320,1],["inc","Aumento por columna",0,10,0.1],["vmax","Velocidad máxima",200,600,10]];
-
-var S={best:0,hist:[],days:{},cfg:Object.assign({},DEF),mode:"dia"};
-try{var raw=localStorage.getItem("franja_v3"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV; if(S.mode!=="dia")S.mode="libre"; if(S.snd===undefined)S.snd=true;}catch(e){}
-function save(){try{localStorage.setItem("franja_v3",JSON.stringify(S));}catch(e){}}
-function dayKey(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-function today(){var k=dayKey(); if(!S.days[k])S.days[k]=[]; return S.days[k];}
-function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function hash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h;}
-
-var stage=document.getElementById("stage"), cv=document.getElementById("cv"), ctx=cv.getContext("2d");
-var elScore=document.getElementById("score"), elSpeed=document.getElementById("speed"), over=document.getElementById("over"), card=document.getElementById("card");
-var bDia=document.getElementById("mode-dia"), bLibre=document.getElementById("mode-libre");
-var W=FW, scale=1, C={};
-function colors(){var cs=getComputedStyle(document.documentElement);["sky","hills","col","cap","floor","floor-line","token","ring","ink"].forEach(function(n){C[n]=cs.getPropertyValue("--"+n).trim();});}
-function resize(){var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,3); if(!r.height)return;
-  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d); scale=Math.min(r.width/FW,r.height/(H+2*EDGE));
-  var ox=(r.width-FW*scale)/2, oy=(r.height-(H+2*EDGE)*scale)/2; ctx.setTransform(scale*d,0,0,scale*d,ox*d,(oy+EDGE*scale)*d);
-  var hd=elScore.parentNode; hd.style.top=(oy+EDGE*scale+10)+"px"; hd.style.left=(ox+14)+"px"; hd.style.right=(ox+14)+"px";}
-new ResizeObserver(resize).observe(stage);
-new MutationObserver(colors).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change",colors);
-colors(); resize();
-
-var state="ready", view="main", y=H/2, vy=0, ang=0, cols=[], score=0, dist=0, rand=Math.random, nCol=0, deadAt=0, runIdx=-1, lastScore=null, t0=0;
-function tokenX(){return 173;}
-function speed(){return Math.min(S.cfg.vmax, S.cfg.v0+S.cfg.inc*score);}
-function triesLeft(){return TRIES-today().length;}
-function blocked(){return S.mode==="dia"&&triesLeft()<=0;}
-
-function addCol(x){var c=S.cfg, gap=Math.max(c.gmin,c.gap-c.shr*nCol), lo=115+gap/2, hi=515-gap/2;
-  cols.push({x:x,gy:lo+rand()*Math.max(0,hi-lo),gap:gap,passed:false}); nCol++;}
-function start(){
-  if(blocked())return;
-  rand = Math.random;
-  cols=[]; nCol=0; score=0; y=H/2; vy=0; ang=0; addCol(W+S.cfg.v0*1.45);
-  if(S.mode==="dia"){today().push(0); runIdx=today().length-1; save();} else runIdx=-1;
-  state="play"; over.hidden=true; hud(); flap();
-}
-var AC=null;
-function beep(f,dur,vol){ if(!S.snd)return; try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended")AC.resume();
-  var o=AC.createOscillator(), g=AC.createGain(), t=AC.currentTime; o.type="sine"; o.frequency.value=f;
-  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+dur);}catch(e){} }
-function flap(){vy=-S.cfg.j; beep(480,0.1,0.25);}
-function die(){
-  state="dead"; deadAt=performance.now(); lastScore=score;
-  S.hist.push(score); if(S.hist.length>200)S.hist.shift(); if(score>S.best)S.best=score;
-  if(runIdx>=0)today()[runIdx]=score; save(); view="main"; panel();
-}
-function overlap(rx,ry,rw,rh){
-  var c=Math.cos(ang), s=Math.sin(ang), hw=rw/2, hh=rh/2, dx=rx+hw-tokenX(), dy=ry+hh-y, ext=HS*(Math.abs(c)+Math.abs(s));
-  if(Math.abs(dx)>hw+ext||Math.abs(dy)>hh+ext)return false;
-  if(Math.abs(dx*c+dy*s)>HS+hw*Math.abs(c)+hh*Math.abs(s))return false;
-  return Math.abs(-dx*s+dy*c)<=HS+hw*Math.abs(s)+hh*Math.abs(c);}
-function hit(c){var top=c.gy-c.gap/2, bot=c.gy+c.gap/2;
-  return overlap(c.x,-50,CW,top+50)||overlap(c.x,bot,CW,H-bot+50);}
-function update(dt){
-  var v=speed(); y+=vy*dt+0.5*S.cfg.g*dt*dt; vy=Math.min(S.cfg.vt,vy+S.cfg.g*dt); ang+=SPIN*dt;
-  var ext=HS*(Math.abs(Math.cos(ang))+Math.abs(Math.sin(ang)));
-  if(y-ext<=0||y+ext>=H){die();return;}
-  dist+=v*dt;
-  for(var i=0;i<cols.length;i++){var c=cols[i]; c.x-=v*dt;
-    if(!c.passed&&c.x+CW<tokenX()-HS){c.passed=true;score++;beep(1283,0.07,0.18);if(runIdx>=0)today()[runIdx]=score;hud();}
-    if(hit(c)){die();return;}}
-  if(cols.length&&cols[0].x<-CW-20)cols.shift();
-  while(cols[cols.length-1].x<W+CW)addCol(cols[cols.length-1].x+S.cfg.sp);
-}
-function hud(){elScore.textContent=score; elSpeed.textContent="Velocidad ×"+(speed()/S.cfg.v0).toFixed(2).replace(".",",");}
-
-function rr(x,yy,w,h,r){ctx.beginPath();ctx.roundRect(x,yy,w,h,r);ctx.fill();}
-function draw(now){
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(0,-EDGE,W,H+2*EDGE); ctx.clip();
-  ctx.fillStyle=C.sky; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle=C.hills; ctx.beginPath(); ctx.moveTo(0,H);
-  for(var x=0;x<=W+20;x+=20){var p=x+dist*0.25; ctx.lineTo(x,H-120-40*Math.sin(p*0.011)-22*Math.sin(p*0.027+1));}
-  ctx.lineTo(W+20,H); ctx.closePath(); ctx.fill();
-  for(var i=0;i<cols.length;i++){var c=cols[i], top=c.gy-c.gap/2, bot=c.gy+c.gap/2;
-    ctx.fillStyle=C.col; ctx.fillRect(c.x,0,CW,top); ctx.fillRect(c.x,bot,CW,H-bot);
-    ctx.fillStyle=C.cap; ctx.fillRect(c.x,top-6,CW,6); ctx.fillRect(c.x,bot,CW,6);}
-  ctx.fillStyle=C.col; ctx.fillRect(0,-EDGE,W,EDGE); ctx.fillRect(0,H,W,EDGE);
-  var ty=state==="ready"?H/2+8*Math.sin(now/260):y, tx=tokenX();
-  ctx.translate(tx,ty); ctx.rotate(state==="ready"?0:ang);
-  ctx.fillStyle=C.token; rr(-15.6,-15.6,31.2,31.2,3);
-  ctx.fillStyle=C.ring; rr(-7,-7,14,14,3);
-  ctx.restore();
-}
-var last=0, acc=0;
-function frame(now){
-  var dt=Math.min(0.1,(now-last)/1000); last=now;
-  if(state==="play"){acc+=dt; while(acc>=STEP&&state==="play"){update(STEP);acc-=STEP;}} else acc=0;
-  draw(now); requestAnimationFrame(frame);
-}
-
-function avg(){var h=S.hist.slice(-10); if(!h.length)return "–"; return (h.reduce(function(a,b){return a+b;},0)/h.length).toFixed(1).replace(".",",");}
-function dayBest(k){var a=S.days[k]; return a&&a.length?Math.max.apply(null,a):null;}
-function esc(n){return String(n);}
-function panel(){
-  over.hidden=false; bDia.setAttribute("aria-pressed",S.mode==="dia"); bLibre.setAttribute("aria-pressed",S.mode==="libre");
-  if(view==="cfg"){
-    card.innerHTML='<h2>Ajustes de física</h2><p>Valores medidos en una grabación del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
-      FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
-      '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
-      '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al tocar y al puntuar</label>'+
-      '<div class="row"><button class="btn" id="b-reset" type="button">Valores iniciales</button><button class="btn go" id="b-back" type="button">Listo</button></div>';
-    FIELDS.forEach(function(f){var inp=document.getElementById("f-"+f[0]); inp.addEventListener("input",function(){S.cfg[f[0]]=parseFloat(inp.value);document.getElementById("o-"+f[0]).textContent=inp.value;save();hud();});});
-    document.getElementById("f-snd").onchange=function(e){S.snd=e.target.checked;save();};
-    document.getElementById("b-reset").onclick=function(){S.cfg=Object.assign({},DEF);save();panel();hud();};
-    document.getElementById("b-back").onclick=function(){view="main";panel();};
-    return;
-  }
-  var dia=S.mode==="dia", left=triesLeft(), tb=dayBest(dayKey()), html="";
-  if(state==="dead"&&lastScore!==null){
-    html+='<div><div class="lbl">'+(lastScore>=S.best&&lastScore>0?"Nuevo récord":"Puntos")+'</div><div class="big">'+esc(lastScore)+'</div></div>';
-  } else {
-    html+='<h2>'+(dia?"Reto del día":"Práctica libre")+'</h2>';
-  }
-  if(dia) html+='<p>'+(left>0?(left===TRIES?"Tienes 3 intentos. Cuenta tu mejor marca del día y los huecos cambian en cada partida.":"Te queda"+(left>1?"n ":" ")+left+" intento"+(left>1?"s":"")+" hoy. Cuenta tu mejor marca."):"Has gastado los 3 intentos de hoy. Marca del día: "+tb+". Sigue entrenando en práctica libre.")+'</p>';
-  else if(state!=="dead") html+='<p>Intentos ilimitados y recorrido distinto cada vez. Toca para subir; con cada columna sube la velocidad y se estrecha la franja. Tocar el techo o el suelo también cuenta como fallo.</p>';
-  html+='<dl class="stats"><div><dt>Récord</dt><dd>'+S.best+'</dd></div><div><dt>Media 10</dt><dd>'+avg()+'</dd></div><div><dt>Hoy</dt><dd>'+(tb===null?"–":tb)+'</dd></div></dl>';
-  var ds=[],mx=1,i; for(i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=dayKey(d),b=dayBest(k);ds.push([d,b,i===0]);if(b>mx)mx=b;}
-  html+='<div><div class="lbl">Reto del día, últimos 7 días</div><div class="days">'+ds.map(function(e){return '<div'+(e[2]?' class="today"':'')+'><span>'+(e[1]===null?"·":e[1])+'</span><i style="height:'+(e[1]?Math.round(e[1]/mx*30)+2:2)+'px"></i><span>'+"DLMXJVS"[e[0].getDay()]+'</span></div>';}).join("")+'</div></div>';
-  html+='<div class="row"><button class="btn" id="b-cfg" type="button">Ajustes</button>'+
-    (blocked()?'<button class="btn go" id="b-libre" type="button">Práctica libre</button>':'<button class="btn go" id="b-go" type="button">'+(state==="dead"?"Otra vez":"Jugar")+'</button>')+'</div>';
-  card.innerHTML=html;
-  document.getElementById("b-cfg").onclick=function(){view="cfg";panel();};
-  var go=document.getElementById("b-go"); if(go)go.onclick=start;
-  var bl=document.getElementById("b-libre"); if(bl)bl.onclick=function(){setMode("libre");};
-}
-function setMode(m){if(state==="play")return; S.mode=m; save(); state="ready"; lastScore=null; cols=[]; score=0; view="main"; hud(); panel();}
-bDia.onclick=function(){setMode("dia");}; bLibre.onclick=function(){setMode("libre");};
-
-function tap(){
-  if(state==="play"){flap();return;}
-  if(view==="cfg")return;
-  if(state==="dead"&&performance.now()-deadAt<450)return;
-  start();
-}
-stage.addEventListener("pointerdown",function(e){ if(e.target.closest(".card"))return; e.preventDefault(); tap(); });
-window.addEventListener("keydown",function(e){ if((e.code==="Space"||e.code==="ArrowUp")&&!e.repeat&&!(e.target.closest&&e.target.closest("input,button"))){e.preventDefault();tap();} });
-
-hud(); panel(); requestAnimationFrame(function(n){last=n;frame(n);});
-})();
-</script>
 </body>
 </html>

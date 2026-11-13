@@ -4,9 +4,11 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 
 ## Estructura
 
-- `index.html`: el juego "Franja" (tocar para subir y pasar por huecos entre columnas). Página única, sin dependencias ni compilación.
+- `index.html`: menú con un enlace por juego.
+- `franja/index.html`: "Franja" (tocar para subir y pasar por huecos entre columnas).
+- `carriles/index.html`: "Carriles" (3 carriles, tocar izquierda/derecha, esquivar coches; el real se llama Lane Rush).
+- Cada juego es una página única, sin dependencias ni compilación, con el mismo estilo visual (el CSS está copiado en cada página).
 - Se publica con GitHub Pages desde `main`, carpeta raíz: https://delatorrezgz-design.github.io/playus-practica-juegos/
-- Al añadir un segundo juego: cada juego en su carpeta (`franja/index.html`, `otro/index.html`) y `index.html` pasa a ser un menú. Mantén el estilo visual de Franja.
 
 ## Convenciones de los juegos
 
@@ -30,3 +32,15 @@ El usuario sube grabaciones de pantalla del juego real. Lo que funcionó:
 8. Validar: reproducir en el juego la misma secuencia y comparar posición a posición con la grabada.
 
 Pedirle intentos "de prueba" baratos: un solo toque y dejar caer, y otro más largo para la progresión. La app tiene modo práctica, pero su recorrido no coincide con el de los intentos reales.
+
+## Estado de Carriles (primera versión)
+
+Medido en una grabación a 60 fps del modo práctica (dos intentos de 67 m, sin esquivar ningún coche):
+velocidad inicial 15,8 m/s (el marcador son metros); carriles a 357 px de separación en pantalla de 1080; cambio de carril
+exponencial con constante de 59 ms (cada fotograma recorre ~24,5 % de lo que falta); el primer coche aparece en el carril
+central a los 50 m y tarda 1,11 s en llegar; su tamaño crece ×4 siguiendo 1/(0,37 s + tiempo restante); el choque salta al
+primer contacto; las rayas de la carretera corren ~4 veces más rápido que se acercan los coches.
+
+Estimado a ojo con un vídeo de TikTok (923 m en ~27 s, no fiable para medir): aceleración, velocidad máxima, separación
+entre oleadas, cuándo empiezan las parejas, cuánto se acorta el aviso con la velocidad y la zona de choque (ancho y largo).
+Falta una grabación propia larga, esquivando coches, para medir todo eso.
