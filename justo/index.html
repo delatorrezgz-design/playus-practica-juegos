@@ -190,7 +190,6 @@ function draw(now,dt){
   ctx.strokeStyle=C.floor; ctx.beginPath(); ctx.arc(CX,CY,RM,0,7); ctx.stroke();
   if(fill>0){ ctx.strokeStyle=bad?C.token:C.col; ctx.beginPath(); ctx.arc(CX,CY,RM,a0,a0+2*Math.PI*Math.min(1,fill)); ctx.stroke(); }
   if(flash>0){ ctx.globalAlpha=flash*0.35; ctx.strokeStyle=bad?C.token:C.cap; ctx.lineWidth=RW+10*flash; ctx.beginPath(); ctx.arc(CX,CY,RM,0,7); ctx.stroke(); ctx.globalAlpha=1; flash=Math.max(0,flash-dt*2.5); }
-  ctx.fillStyle=C.token; ctx.beginPath(); ctx.moveTo(CX,CY-RM-RW/2-4); ctx.lineTo(CX-7,CY-RM-RW/2-15); ctx.lineTo(CX+7,CY-RM-RW/2-15); ctx.closePath(); ctx.fill();
   // Con 2 decimales redondea, como el real (6,9976 → 7,00). Con menos, corta: si no, el "7" saldría a los 6,5 s.
   var k=Math.pow(10,c.dec), vs=c.dec>=2?v:Math.floor(v*k+1e-9)/k;
   digits(fmt(vs,c.dec),CX,CY+4,c.dec>2?62:76,bad?C.token:C.ink);
