@@ -64,22 +64,29 @@ hacia los 850 m, la mitad de oleadas en pareja al final, y una posible velocidad
 Leer el marcador: umbral de blanco (canal mínimo > 210), separar dígitos por columnas y compararlos con plantillas
 (`ocr.py` de la sesión); da el metro exacto de cada fotograma.
 
-## Estado de Diana (primera versión, con un vídeo de YouTube)
+## Estado de Diana (segunda versión: vídeo de YouTube + grabación propia de práctica a 60 fps)
 
-Mecánica: la diana gira; tocar lanza un dardo recto hacia arriba que se clava abajo. Choca (fin) si hay otro dardo a menos de
-`gap` grados; +1 por dardo y +2 si se clava sobre una moneda del borde (en el real, manzana). Al acabar los dardos de la ronda,
-salen despedidos y empieza otra con más dardos, más giro y algún dardo ya clavado.
+Mecánica: la diana gira; tocar lanza un dardo recto hacia arriba. Queda clavado (y gira con la diana) 150 ms después del toque;
+en ese instante choca (fin) si hay otro dardo a menos de `gap` grados, o coge la moneda del borde (+2; en el real, manzana).
+Al acabar los dardos de la ronda salen despedidos y, tras 1,05 s, empieza otra con más dardos, más giro y algún dardo ya clavado.
 `diana/index.html#demo` juega solo. `Diana.replay({angle:[[t,grados]...], rounds:[{pre:[..],coins:[..]}], taps:[t...]})`
 repite una partida grabada (giro medido, dardos previos y toques) y devuelve puntos y ángulo de cada clavada.
 
-Del vídeo de YouTube (grabado de un Short a 30 fps; sin comprobar si va acelerado; partida de 26 puntos cortada en la ronda 4):
-- Rondas de 5, 6, 7 y 8 cuchillos; ya clavados al empezar: 0, 1, 2, 2. Pausa de 1,0 s entre el último cuchillo y la ronda siguiente.
-- Giro horario de ~140, 170, 200 y 250 °/s por ronda, con cambios suaves de ~1,2 s. En la ronda 4 (a los ~19 s) frenó,
-  giró a −200 °/s durante ~1 s y volvió. El jugador del vídeo esperó 20 s sin lanzar: no hay límite de tiempo.
-- Manzana: 1 en 4 rondas, en el borde; contó un cuchillo a 7° de su centro; suma +2 (además del +1).
-- Separación mínima entre cuchillos sin chocar: 21° (la zona de choque es menor). Vuelo ≤ 50 ms; el siguiente cuchillo sale al instante.
-- Repetición: los mismos 24 lanzamientos dan 26 puntos y la manzana en el 2.º, como en el vídeo.
+Medido en la grabación propia (práctica, 60 fps, toques visibles; 5 cuchillos en la ronda 1, sin choque):
+- Del punto de "Mostrar toques" a que sale el cuchillo: 3 fotogramas (~50 ms). Llega al tronco ~40 ms después, entra hasta la
+  guarda (~65 ms tras salir), se queda quieto ~35 ms y entonces gira con el tronco: del toque a clavado, 149 ms (143–156, 4 toques).
+- Giro: cada ~2,35 s elige una velocidad objetivo y se acerca a ella exponencialmente con τ = 1,0 s (ajuste con error de 2 °/s).
+  El primer cambio llega ~2,25 s después de empezar la ronda; al empezar ronda salta de golpe a su velocidad inicial.
+  Ronda 1: 150 → 158 → 186 → 174 → 150. Ronda 2: 160 → 212 → −162 (al revés en el 2.º cambio, igual que en YouTube).
+  YouTube (30 fps): ronda 3: 178 → 230 → 190; ronda 4: 200 → 285 → 252 → … → 288 → 214 → 251 → −280 (a los 18,7 s) → 200.
+  Inicio de ronda ≈ 140 + 20 por ronda; objetivos entre 1,0 y 1,45 veces ese inicio; al revés entre 1,0 y 1,4 veces.
+- Dos cuchillos a 15,2° no chocaron (toques a 96 ms). La zona de choque es menor; falta grabar un choque.
+- Rondas de 5, 6, 7, 8 cuchillos; ya clavados al empezar 0, 1, 2, 2. Manzana en la ronda 1 siempre (2 de 2), luego 1 de 4 rondas.
+- La manzana contó con el cuchillo a 7° de su centro (YouTube). No hay límite de tiempo.
+- Repeticiones: con los 5 toques reales, los 5 cuchillos quedan a menos de 2° de los reales (5 puntos, ronda 2). YouTube: 26 puntos.
 
-Cómo se midió: centro del tronco por ajuste de círculo al borde de ladrillos; desenrollado polar alrededor del centro
-(`cv2.remap`) y correlación circular de la cara del tronco entre fotogramas para el giro; los mangos (marrón, R−G > 45)
-en un anillo fuera del borde, pasados a coordenadas del tronco, dan cada cuchillo clavado y su ángulo.
+Cómo se midió: centro del tronco por ajuste de círculo al borde de ladrillos (práctica: 539,5; 1067; radio 268 px en 1080×2414);
+desenrollado polar (`cv2.remap`) y correlación circular de la cara del tronco entre fotogramas para el giro, repartiendo los saltos
+dobles del grabador entre fotogramas de 60 Hz; objetivo de velocidad = v + τ·v'. Mangos (marrón, R−G > 45) en un anillo fuera del
+borde, en coordenadas del tronco: ángulo de cada cuchillo; el instante en que se clava sale de cuándo ese ángulo pasa por abajo.
+Toques: disco claro pequeño (DoG en fotogramas a 1/4) que aparece de golpe; comprobarlos a ojo ampliando la zona.
