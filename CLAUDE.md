@@ -100,24 +100,39 @@ cuándo ese ángulo pasa por abajo. Manzanas: rojo intenso (R > 190, G < 40) en 
 se vuelve 0. Toques: disco claro pequeño que aparece de golpe a la derecha de la fila de cuchillos; comprobarlos ampliando.
 Vídeos de más de 30 MB no se pueden subir: grabar a 720p con calidad baja y 60 fps (43 s ocupan 23 MB), o trocear.
 
-## Estado de Justo (primera versión: solo un Short de YouTube grabado por el usuario, 30 fps, sin acelerar)
+## Estado de Justo (segunda versión: Short de YouTube + un intento de práctica propio a 60 fps y dos partidas grabadas en Justo)
 
 Mecánica: un toque pone en marcha el cronómetro (dos decimales) y el anillo; otro toque lo para. El resultado sale de la hora
 exacta de cada toque (`event.timeStamp`), no de los fotogramas, y se enseña con cuatro decimales. Si llega a 7 sin tocar, o el
-segundo toque es después de 7, "te has pasado" (se guarda como −1). Puntos = lo que faltó (7 − resultado); menos es mejor.
-Récord = lo que menos faltó; la media de las 10 últimas no cuenta las pasadas. `Justo.replay({taps:[inicio, parada]})` (en s)
-devuelve resultado exacto, lo que faltó y lo que enseñaría el marcador.
+segundo toque es después de 7, "te has pasado" (se guarda como −1). Puntos = lo que faltó (7 − resultado); menos es mejor; la
+tarjeta dice también lo que puntuaría en el real (redondeado a dos decimales). Récord = lo que menos faltó; la media de las 10
+últimas no cuenta las pasadas. `Justo.replay({taps:[inicio, parada]})` (en s) devuelve resultado exacto, lo que faltó y el marcador.
 
-Medido (Short de @riquiduarte, 16 s, grabado desde la pantalla del usuario; números leídos fotograma a fotograma con plantillas):
-- Cronómetro a velocidad de reloj: 1,0005 ± 0,0004 (por eso el vídeo no está acelerado). Cada valor dura 2 fotogramas: el Short va a 30 fps.
-- Anillo: una vuelta en 7 s (51,44 °/s), lineal, empieza arriba y gira en el sentido del reloj; va con el número (diferencia 0,004 s).
-- Paró en 6,9976 y el marcador quedó en 7,00: redondea a dos decimales. Debajo: "Resultado exacto: 6.9976" y "POR 0.0024s".
-  Pantalla final: "HAS PUNTUADO 0,00 Segundos" (lo que faltó, con dos decimales) y una tabla con "0.01 Segundos" de segundo.
-- El punto de "Mostrar toques" del autor sale ~35–60 ms antes de que el número empiece a contar: es el retraso normal de pantalla.
-  Del toque de inicio al de parada (puntos): 7,006 ± 0,033 s, que cuadra con 6,9976 (a 30 fps no da para más).
-- Texto del juego: "Toca una vez para iniciar el cronómetro y vuelve a tocar lo más cerca posible de los 7 segundos. Cuanto más
-  cerca de 7, mayor es la puntuación. Si esperas demasiado, la ronda termina." Durante la cuenta: "TOCA EN 7".
+El usuario solo tiene un intento de práctica al día (no se puede repetir) y los reales no los graba: no pedir pruebas de fallar.
+Lo que se pueda medir, pedirlo en el intento de práctica (jugando normal) y en grabaciones de Justo, que no gastan nada.
 
-Sin medir (puesto a ojo): que la ronda acabe justo a los 7,00 s; que cuente al apoyar el dedo (y no al levantarlo); qué puntuación da
-pasarse; si el real tiene sonidos; si el marcador cambia en cada fotograma de 60 Hz; el retraso de los números en pantalla del juego
-frente al de esta página (ajuste "Retraso de los números", en 0). El audio del Short es música, no sirve.
+Medido:
+- Cronómetro a velocidad de reloj: 0,99996 (práctica 60 fps) y 1,0005 ± 0,0004 (Short). Cambia en cada imagen de 60 Hz.
+- Anillo: una vuelta en 7 s, lineal, empieza arriba, sentido del reloj; va con el número. En el real se pone rojo al parar
+  lejos (0,1781) y se queda verde muy cerca (0,0024); el umbral no se sabe y Justo no lo imita.
+- Arranca al apoyar el dedo: con el dedo apoyado 1,1 s, el número empezó a contar 2 imágenes después de aparecer el punto.
+- Marcador y puntuación redondeados a dos decimales: 6,9976 → "7.00"; 6,8219 → "6.82"; falta 0,1781 → "YOU SCORED 0,18".
+  Tras parar enseña "OFF BY 0.1781s" (en español "POR 0.0024s"; con 7.00 en pantalla añade "Resultado exacto: 6.9976").
+- El resultado es el tiempo entre los dos puntos de "Mostrar toques": práctica 6,8407 frente a 6,8219 (19 ms, una imagen);
+  Justo 6,9914 frente a 6,9801 y 6,9407 frente a 6,9403. El vídeo no da más precisión que una imagen (~16 ms) por toque.
+- Retraso de los números (del punto del toque a que el número "empieza" en la recta ajustada): real 39 ms al arrancar y 22 ms
+  al parar; Justo 20 y 17 ms al arrancar, 9 y 15 ms al parar (Chrome del mismo Xiaomi). El real va ~15 ms más retrasado:
+  ajuste "Retraso de los números" = 15 ms (CFGV 2). El real congela el número en la misma imagen del toque; Justo, 1–2 después.
+- Sonido: el audio de la práctica son voces de fondo; no hay tic durante la cuenta ni sonido al arrancar; hay un golpe corto
+  ~0,1 s después de parar (y al pulsar "Start"). Justo ya no suena al arrancar. El grabador sí recoge el sonido del juego (se
+  oyen los pitidos de 990 Hz de Justo al parar).
+- Pantallas: "Tap to start, tap again at 7s" con un disco gris que late (adorno, no es el toque); durante la cuenta "TAP AT 7".
+  Tras parar, ~1,4–1,75 s hasta la pantalla final.
+
+Sin medir: qué pasa al llegar a 7 sin tocar o al tocar después (Justo lo da como "te has pasado"; el texto del juego dice "Si
+esperas demasiado, la ronda termina").
+
+Cómo se midió: anillo muestreado en un círculo (centro 239,5; 563,5; radio 161 en 480×1072) por color; números con plantillas
+por casillas fijas entrenadas con el valor que da el anillo (`ocr2.py` de la sesión); el punto de "Mostrar toques" es un disco
+claro pequeño que aparece de golpe (diferencia entre imágenes); recta valor = tiempo − cero por mitades, porque los tiempos del
+grabador derivan ~15 ms.

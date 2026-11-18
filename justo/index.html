@@ -90,11 +90,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 /* Campo lógico 400x620. Un toque pone en marcha el cronómetro y otro lo para; el anillo da una vuelta entera en "target" segundos.
    El tiempo no sale de los fotogramas sino de la hora exacta de cada toque (event.timeStamp, en milisegundos con decimales),
    así que el resultado tiene cuatro decimales de verdad. Si el cronómetro llega a "target" sin que hayas parado, te has pasado.
-   Medido en el real (vídeo de YouTube, 30 fps, que no está acelerado): cronómetro a velocidad de reloj (1,0005 ± 0,0004),
-   anillo lineal de 0 a 7 s empezando arriba y en el sentido del reloj, marcador con dos decimales redondeados
-   (paró en 6,9976 y enseñaba 7,00), resultado exacto con cuatro decimales y lo que faltó = 7 − resultado. */
+   Medido en el real (Short de YouTube a 30 fps y un intento de práctica propio a 60 fps con "Mostrar toques"):
+   cronómetro a velocidad de reloj (1,0000 ± 0,0002) que cambia en cada imagen; anillo lineal de 0 a 7 s, desde arriba y en el
+   sentido del reloj; arranca al apoyar el dedo (no al levantarlo); marcador y puntuación redondeados a dos decimales
+   (6,9976 → 7,00; falta 0,1781 → puntúa 0,18); el resultado es el tiempo entre los dos toques (cuadra con una imagen de margen).
+   Sus números van ~15 ms más retrasados que los de esta página en el mismo móvil: ajuste "lag". Sin sonido al arrancar. */
 var H=620, FW=400, CX=200, CY=262, RM=128, RW=26;
-var DEF={target:7,speed:1,lag:0,dec:2}, CFGV=1;
+var DEF={target:7,speed:1,lag:15,dec:2}, CFGV=2;
 var FIELDS=[["target","Segundos a los que hay que parar",3,15,0.5],
   ["speed","Velocidad del cronómetro (1 = reloj de verdad)",0.95,1.05,0.001],
   ["lag","Retraso de los números en pantalla (ms)",-100,200,5],
@@ -146,7 +148,8 @@ function evTime(e){ // hora exacta del toque, en la misma escala que performance
   var n=performance.now(), t=e&&e.timeStamp; return (t>0&&Math.abs(n-t)<5000)?t:n; }
 
 function ready(){ state="ready"; res=null; fill=0; over.hidden=true; }
-function begin(t){ state="run"; t0=t; tone(660,660,0.05,0.25,"triangle"); }
+function begin(t){ state="run"; t0=t; // el real no suena al arrancar: solo se prepara el sonido de la parada
+  if(S.snd)try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended")AC.resume(); }catch(e){} }
 function finish(m){ // m: resultado de measure(), o {over:true,t:null} si llegó al final sin tocar
   state="done"; res=m; doneAt=performance.now(); flash=1;
   if(m.over)tone(200,70,0.35,0.35,"sawtooth"); else tone(990,990,0.06,0.3,"triangle");
@@ -216,7 +219,7 @@ function panel(){
     card.innerHTML='<h2>Ajustes</h2><p>Valores sacados de grabaciones del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
       FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
       '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
-      '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al empezar y al parar</label>'+
+      '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al parar</label>'+
       '<div class="row"><button class="btn" id="b-reset" type="button">Valores iniciales</button><button class="btn go" id="b-back" type="button">Listo</button></div>';
     FIELDS.forEach(function(f){var inp=document.getElementById("f-"+f[0]); inp.addEventListener("input",function(){S.cfg[f[0]]=parseFloat(inp.value);document.getElementById("o-"+f[0]).textContent=inp.value;save();});});
     document.getElementById("f-snd").onchange=function(e){S.snd=e.target.checked;save();};
@@ -229,7 +232,7 @@ function panel(){
     if(res.over) html+='<div><div class="lbl">Te has pasado'+(res.t===null?' · no paraste':'')+'</div><div class="big bad">'+fmt(res.t===null?S.cfg.target:res.t,res.t===null?2:4)+'<small>s</small></div></div>'+
       '<p>Si el cronómetro llega a '+fmt(S.cfg.target,S.cfg.target%1?1:0)+' s antes de que toques, se acaba.</p>';
     else html+='<div><div class="lbl">'+(res.record?"Nuevo récord · te faltó":"Te faltó")+'</div><div class="big">'+fmt(res.gap,4)+'<small>s</small></div></div>'+
-      '<p>Paraste en '+fmt(res.t,4)+' s.</p>';
+      '<p>Paraste en '+fmt(res.t,4)+' s. En el juego real puntuarías '+fmt(res.gap,2)+' s.</p>';
   }
   else{ var g=fmt(S.cfg.target,S.cfg.target%1?1:0);
     html+='<h2>Justo</h2><p>Toca para poner en marcha el cronómetro y vuelve a tocar lo más cerca posible de los '+g+' segundos, sin pasarte: si llega a '+g+', se acaba. Cuenta lo que te faltó; cuanto menos, mejor.</p>'; }
