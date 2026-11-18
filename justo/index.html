@@ -94,12 +94,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
    cronómetro a velocidad de reloj (1,0000 ± 0,0002) que cambia en cada imagen; anillo lineal de 0 a 7 s, desde arriba y en el
    sentido del reloj; arranca al apoyar el dedo (no al levantarlo); marcador y puntuación redondeados a dos decimales
    (6,9976 → 7,00; falta 0,1781 → puntúa 0,18); el resultado es el tiempo entre los dos toques (cuadra con una imagen de margen).
-   Sus números van ~15 ms más retrasados que los de esta página en el mismo móvil: ajuste "lag". Sin sonido al arrancar. */
+   El real empieza a contar ~20 ms después del toque (ajuste "start"): lo cuenta el resultado y lo enseña el número. Medido en dos
+   partidas (práctica y real) frente a dos de esta página en el mismo móvil. "lag" solo retrasa el número. Sin sonido al arrancar. */
 var H=620, FW=400, CX=200, CY=262, RM=128, RW=26;
-var DEF={target:7,speed:1,lag:15,dec:2}, CFGV=2;
+var DEF={target:7,speed:1,start:20,lag:0,dec:2}, CFGV=3;
 var FIELDS=[["target","Segundos a los que hay que parar",3,15,0.5],
   ["speed","Velocidad del cronómetro (1 = reloj de verdad)",0.95,1.05,0.001],
-  ["lag","Retraso de los números en pantalla (ms)",-100,200,5],
+  ["start","Retraso del arranque tras el primer toque (ms)",0,100,5],
+  ["lag","Retraso solo de los números en pantalla (ms)",-100,200,5],
   ["dec","Decimales del cronómetro",0,3,1]];
 
 var S={best:null,hist:[],games:0,cfg:Object.assign({},DEF)};
@@ -110,11 +112,11 @@ function save(){try{localStorage.setItem("justo_v1",JSON.stringify(S));}catch(e)
 function fmt(v,d){return v.toFixed(d).replace(".",",");}
 function r4(v){return Math.round(v*1e4)/1e4;}
 function measure(cfg,ms){ // de milisegundos entre los dos toques al resultado del juego
-  var t=r4(ms/1000*cfg.speed), over=t>cfg.target;
+  var t=r4(Math.max(0,ms-cfg.start)/1000*cfg.speed), over=t>cfg.target;
   return {t:t, over:over, gap:over?null:r4(cfg.target-t)};
 }
 function shown(cfg,ms){ // lo que enseña el cronómetro "ms" milisegundos después del primer toque
-  var v=ms/1000*cfg.speed-cfg.lag/1000; return Math.max(0,Math.min(cfg.target,v));
+  var v=(ms-cfg.start)/1000*cfg.speed-cfg.lag/1000; return Math.max(0,Math.min(cfg.target,v));
 }
 // Repite una partida grabada: instantes (s) del toque de inicio y del de parada. Devuelve lo que daría este juego.
 function replay(sc){
@@ -205,7 +207,7 @@ var last=0;
 function frame(now){
   var dt=Math.min(0.1,(now-last)/1000); last=now;
   // Si llega al final sin toque, te has pasado. Se espera 50 ms más por si un toque de justo antes aún no ha llegado.
-  if(state==="run"&&(now-t0)/1000*S.cfg.speed>S.cfg.target+0.05)finish({t:null,over:true,gap:null});
+  if(state==="run"&&(now-t0-S.cfg.start)/1000*S.cfg.speed>S.cfg.target+0.05)finish({t:null,over:true,gap:null});
   if(state==="done"&&performance.now()-doneAt>1000){state="menu"; view="main"; panel();}
   draw(now,dt); requestAnimationFrame(frame);
 }
