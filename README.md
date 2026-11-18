@@ -9,13 +9,14 @@ Minijuegos de práctica para entrenar antes de jugar los retos diarios. Cada jue
 | Franja | `franja/index.html` | Toca para subir la ficha y pasar por el hueco de cada columna. Con cada columna sube la velocidad y se estrecha el hueco. Tocar techo o suelo es fallo. |
 | Carriles | `carriles/index.html` | Tres carriles. Toca a izquierda o derecha para cambiar un carril cada vez y esquiva los coches. Los metros recorridos son los puntos; cada vez va más rápido y llegan coches de dos en dos. |
 | Diana | `diana/index.html` | Toca para lanzar un dardo a la diana que gira. Si das a un dardo ya clavado, se acaba. Cada dardo suma 1 punto y las monedas del borde 2 más. Cada ronda trae más dardos y más giro, y a veces frena o gira al revés. |
+| Justo | `justo/index.html` | Toca para poner en marcha el cronómetro y vuelve a tocar lo más cerca posible de 7 segundos. Si llega a 7 sin que toques, te has pasado. Cuenta lo que faltó, con cuatro decimales; cuanto menos, mejor. |
 
 ## Cómo jugar
 
 Abre `index.html` (el menú) en el navegador del móvil, o activa GitHub Pages (Settings → Pages → Branch `main`, carpeta `/root`) y entra en la dirección que te da GitHub.
 
 - **Reto del día** (solo Franja): 3 intentos, cuenta la mejor marca.
-- **Carriles** y **Diana** no tienen límite de intentos: guardan récord, media de las últimas 10 partidas y un botón para reiniciar las estadísticas.
+- **Carriles**, **Diana** y **Justo** no tienen límite de intentos: guardan récord, media de las últimas 10 partidas y un botón para reiniciar las estadísticas.
 - **Práctica libre:** intentos ilimitados.
 - **Ajustes:** gravedad, impulso, tamaño del hueco, velocidad… Los valores por defecto están medidos en un vídeo de una partida real.
 

@@ -8,6 +8,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - `franja/index.html`: "Franja" (tocar para subir y pasar por huecos entre columnas).
 - `carriles/index.html`: "Carriles" (3 carriles, tocar izquierda/derecha, esquivar coches; el real se llama Lane Rush).
 - `diana/index.html`: "Diana" (lanzar dardos a una diana que gira sin dar a los ya clavados; el real se llama Knife Throw).
+- `justo/index.html`: "Justo" (tocar para arrancar un cronómetro y parar lo más cerca de 7 s sin pasarse; el real se llama On time).
 - Cada juego es una página única, sin dependencias ni compilación, con el mismo estilo visual (el CSS está copiado en cada página).
 - Se publica con GitHub Pages desde `main`, carpeta raíz: https://delatorrezgz-design.github.io/playus-practica-juegos/
 
@@ -17,7 +18,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - Física a paso fijo de 1/120 s con integración exacta (`y += v*dt + g*dt²/2`).
 - Marcas y ajustes en `localStorage`, siempre con try/catch. Si cambian los valores por defecto, sube `CFGV` para que se apliquen sin borrar las marcas.
 - Panel de Ajustes con un deslizador por parámetro físico y botón "Valores iniciales".
-- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles y Diana: solo práctica, con récord, media de las últimas 10 partidas, barritas de las 10 últimas y botón "Reiniciar estadísticas" con confirmación (el usuario lo pidió así).
+- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles, Diana y Justo: solo práctica, con récord, media de las últimas 10 partidas, barritas de las 10 últimas y botón "Reiniciar estadísticas" con confirmación (el usuario lo pidió así).
 
 ## Cómo calibrar un juego con un vídeo
 
@@ -98,3 +99,25 @@ R−G > 45) en un anillo fuera del borde, en coordenadas del tronco: ángulo de 
 cuándo ese ángulo pasa por abajo. Manzanas: rojo intenso (R > 190, G < 40) en el anillo del borde. Al chocar, el giro medido
 se vuelve 0. Toques: disco claro pequeño que aparece de golpe a la derecha de la fila de cuchillos; comprobarlos ampliando.
 Vídeos de más de 30 MB no se pueden subir: grabar a 720p con calidad baja y 60 fps (43 s ocupan 23 MB), o trocear.
+
+## Estado de Justo (primera versión: solo un Short de YouTube grabado por el usuario, 30 fps, sin acelerar)
+
+Mecánica: un toque pone en marcha el cronómetro (dos decimales) y el anillo; otro toque lo para. El resultado sale de la hora
+exacta de cada toque (`event.timeStamp`), no de los fotogramas, y se enseña con cuatro decimales. Si llega a 7 sin tocar, o el
+segundo toque es después de 7, "te has pasado" (se guarda como −1). Puntos = lo que faltó (7 − resultado); menos es mejor.
+Récord = lo que menos faltó; la media de las 10 últimas no cuenta las pasadas. `Justo.replay({taps:[inicio, parada]})` (en s)
+devuelve resultado exacto, lo que faltó y lo que enseñaría el marcador.
+
+Medido (Short de @riquiduarte, 16 s, grabado desde la pantalla del usuario; números leídos fotograma a fotograma con plantillas):
+- Cronómetro a velocidad de reloj: 1,0005 ± 0,0004 (por eso el vídeo no está acelerado). Cada valor dura 2 fotogramas: el Short va a 30 fps.
+- Anillo: una vuelta en 7 s (51,44 °/s), lineal, empieza arriba y gira en el sentido del reloj; va con el número (diferencia 0,004 s).
+- Paró en 6,9976 y el marcador quedó en 7,00: redondea a dos decimales. Debajo: "Resultado exacto: 6.9976" y "POR 0.0024s".
+  Pantalla final: "HAS PUNTUADO 0,00 Segundos" (lo que faltó, con dos decimales) y una tabla con "0.01 Segundos" de segundo.
+- El punto de "Mostrar toques" del autor sale ~35–60 ms antes de que el número empiece a contar: es el retraso normal de pantalla.
+  Del toque de inicio al de parada (puntos): 7,006 ± 0,033 s, que cuadra con 6,9976 (a 30 fps no da para más).
+- Texto del juego: "Toca una vez para iniciar el cronómetro y vuelve a tocar lo más cerca posible de los 7 segundos. Cuanto más
+  cerca de 7, mayor es la puntuación. Si esperas demasiado, la ronda termina." Durante la cuenta: "TOCA EN 7".
+
+Sin medir (puesto a ojo): que la ronda acabe justo a los 7,00 s; que cuente al apoyar el dedo (y no al levantarlo); qué puntuación da
+pasarse; si el real tiene sonidos; si el marcador cambia en cada fotograma de 60 Hz; el retraso de los números en pantalla del juego
+frente al de esta página (ajuste "Retraso de los números", en 0). El audio del Short es música, no sirve.
