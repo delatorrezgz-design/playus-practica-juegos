@@ -89,15 +89,18 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
    "hold" ms; entonces queda clavado y gira con ella. En ese instante se mira si choca (otro dardo a menos de "gap" grados) o coge moneda.
    Giro: cada "every" segundos elige una velocidad objetivo y se acerca a ella con constante "tau": v' = (objetivo - v)/tau. */
 var H=620, FW=400, STEP=1/120, CX=200, CY=232, RF=88, RR=100, PEN=34, TIP0=478, DL=104;
-var DEF={v1:145,dv:18,vmax:330,vlo:10,vup:45,first:2.25,every:2.4,tau:1.0,rev0:2,prev:15,revk:140,lag:55,travel:65,hold:35,gap:12.5,n1:5,dn:1,nmax:12,pre:2,pcoin:40,coinw:15,coinp:2,pause:1.05}, CFGV=3;
-var FIELDS=[["v1","Giro al empezar la ronda 1 (grados por segundo)",40,400,1],["dv","Giro de más en cada ronda (grados/s)",0,100,1],["vmax","Giro máximo al empezar una ronda (grados/s)",100,600,5],
-  ["vlo","Bajadas de velocidad dentro de la ronda, hasta (−%)",0,50,1],["vup","Subidas de velocidad dentro de la ronda, hasta (+%)",0,100,1],["first","Segundos hasta el primer cambio de velocidad",0.5,8,0.05],["every","Segundos entre cambios de velocidad",0.5,8,0.05],
+var DEF={v1:150,v2:160,dv:18,vmax:330,vlo:10,vup:45,first:2.2,every:2.25,evvar:0.25,tau:1.0,rev0:2,prev:22,lag:50,travel:65,hold:35,gap:12.5,
+  n1:5,dn:1,nmax:12,pre:4,pcoin:33,ncoin:2,coinw:15,coinp:2,pause:1.05}, CFGV=4;
+var FIELDS=[["v1","Giro al empezar la ronda 1 (grados por segundo)",40,400,1],["v2","Giro al empezar la ronda 2 (grados/s)",40,400,1],["dv","Giro de más en cada ronda siguiente (grados/s)",0,100,1],
+  ["vmax","Giro máximo al empezar una ronda (grados/s)",100,600,5],
+  ["vlo","Bajadas de velocidad dentro de la ronda, hasta (−%)",0,50,1],["vup","Subidas de velocidad dentro de la ronda, hasta (+%)",0,100,1],
+  ["first","Segundos hasta el primer cambio de velocidad",0.5,8,0.05],["every","Segundos entre cambios de velocidad",0.5,8,0.05],["evvar","Variación al azar de ese tiempo (± s)",0,2,0.05],
   ["tau","Suavidad de los cambios de velocidad (s)",0.1,3,0.05],
-  ["rev0","Ronda desde la que puede girar al revés",1,15,1],["prev","Probabilidad de girar al revés en cada cambio (%)",0,100,1],["revk","Velocidad al revés, hasta (% de la del inicio de ronda)",50,200,5],
+  ["rev0","Ronda desde la que puede cambiar de sentido",1,15,1],["prev","Probabilidad de cambiar de sentido en cada cambio (%)",0,100,1],
   ["lag","Del toque a que sale el dardo (ms)",0,200,5],["travel","Vuelo hasta entrar en la diana (ms)",10,300,5],["hold","Quieto antes de girar con la diana (ms)",0,200,5],
   ["gap","Zona de choque entre dardos (grados)",3,30,0.5],
-  ["n1","Dardos en la ronda 1",1,15,1],["dn","Dardos de más en cada ronda",0,3,1],["nmax","Dardos por ronda, máximo",3,20,1],["pre","Dardos ya clavados al empezar, máximo",0,6,1],
-  ["pcoin","Probabilidad de moneda desde la ronda 2 (%)",0,100,5],["coinw","Zona de acierto de la moneda (grados)",2,30,0.5],["coinp","Puntos extra por moneda",0,5,1],
+  ["n1","Dardos en la ronda 1",1,15,1],["dn","Dardos de más en cada ronda",0,3,1],["nmax","Dardos por ronda, máximo",3,20,1],["pre","Dardos ya clavados al empezar, máximo",0,8,1],
+  ["pcoin","Probabilidad de cada moneda desde la ronda 2 (%)",0,100,1],["ncoin","Monedas por ronda desde la 2, máximo",0,4,1],["coinw","Zona de acierto de la moneda (grados)",2,30,0.5],["coinp","Puntos extra por moneda",0,5,1],
   ["pause","Pausa entre rondas (s)",0.2,3,0.05]];
 
 var S={best:0,hist:[],games:0,cfg:Object.assign({},DEF)};
@@ -110,10 +113,10 @@ function w360(a){a%=360; return a<0?a+360:a;}
 function newGame(cfg,opt){
   opt=opt||{};
   var g={cfg:cfg,rnd:opt.rnd||Math.random,angFn:opt.angFn||null,script:opt.rounds||null,t:0,tr:0,round:0,score:0,ang:0,v:0,
-    rot:{to:0,next:0,k:0,rev:false},stuck:[],coins:[],fly:[],left:0,phase:"play",tPhase:0,log:[],fx:[]};
+    rot:{to:0,next:0,k:0,dir:1},stuck:[],coins:[],fly:[],left:0,phase:"play",tPhase:0,log:[],fx:[]};
   newRound(g); return g;
 }
-function base(g){var c=g.cfg; return Math.min(c.vmax,c.v1+c.dv*(g.round-1));}
+function base(g){var c=g.cfg; return g.round<=1?c.v1:Math.min(c.vmax,c.v2+c.dv*(g.round-2));}
 function stickT(c){return (c.lag+c.travel+c.hold)/1000;}
 function freeSpot(g,away){ // ángulo al azar lejos de lo que ya hay
   for(var k=0;k<60;k++){var a=g.rnd()*360, ok=true;
@@ -128,17 +131,18 @@ function newRound(g){
   sc=g.script&&g.script[g.round-1];
   if(sc){ (sc.pre||[]).forEach(function(p){g.stuck.push({phi:w360(p),pre:true});}); (sc.coins||[]).forEach(function(p){g.coins.push({phi:w360(p)});}); }
   else{
-    var np=Math.min(c.pre,g.round-1); for(i=0;i<np;i++)g.stuck.push({phi:freeSpot(g,2*c.gap+12),pre:true});
-    if(g.round===1||g.rnd()*100<c.pcoin)g.coins.push({phi:freeSpot(g,c.gap+c.coinw+4)}); // en la ronda 1 siempre hubo moneda
+    var np=Math.min(c.pre,Math.floor(0.6*(g.round-1)+0.9)); // medido: 0, 1, 2, 2, 3 en las rondas 1 a 5
+    for(i=0;i<np;i++)g.stuck.push({phi:freeSpot(g,30),pre:true});
+    if(g.round===1)g.coins.push({phi:freeSpot(g,c.gap+c.coinw+4)}); // en la ronda 1 siempre hubo una
+    else for(i=0;i<c.ncoin;i++)if(g.rnd()*100<c.pcoin)g.coins.push({phi:freeSpot(g,c.gap+c.coinw+4)});
   }
-  var v=base(g); g.v=v; g.rot={to:v,next:c.first,k:0,rev:false}; // al empezar la ronda salta a su velocidad
+  var v=base(g); g.v=v; g.rot={to:v,next:c.first,k:0,dir:1}; // al empezar la ronda salta a su velocidad, en el sentido del reloj
 }
-function program(g){ // nueva velocidad objetivo: entre un poco menos y bastante más que la de inicio de ronda, o a veces al revés
+function program(g){ // nueva velocidad objetivo: entre un poco menos y bastante más que la de inicio de ronda; a veces cambia de sentido
   var c=g.cfg, r=g.rot, b=base(g); r.k++;
-  // en la ronda 2, el segundo cambio fue al revés en los dos vídeos
-  if(g.round>=c.rev0&&!r.rev&&((g.round===2&&r.k===2)||g.rnd()*100<c.prev)){ r.to=-b*(1+g.rnd()*Math.max(0,c.revk-100)/100); r.rev=true; }
-  else{ r.to=b*(1+(g.rnd()*(c.vup+c.vlo)-c.vlo)/100); r.rev=false; }
-  r.next+=c.every;
+  if(g.round>=c.rev0&&g.rnd()*100<c.prev)r.dir=-r.dir;
+  r.to=r.dir*b*(1+(g.rnd()*(c.vup+c.vlo)-c.vlo)/100);
+  r.next+=c.every+(2*g.rnd()-1)*c.evvar;
 }
 function throwDart(g,late){ // late: parte del paso actual que pasó antes del toque (para repetir partidas grabadas)
   if(g.phase!=="play"||g.left<=0)return false;
@@ -150,8 +154,9 @@ function update(g,dt){
   g.t+=dt; g.tr+=dt; g.tPhase+=dt;
   if(g.angFn){ g.ang=g.angFn(g.t); g.v=(g.ang-a0)/dt; }
   else{
-    if(g.phase!=="crash"&&g.tr>=r.next)program(g);
-    var T=r.to, e=Math.exp(-dt/c.tau); g.ang+=T*dt+(g.v-T)*c.tau*(1-e); g.v=T+(g.v-T)*e; // integración exacta
+    if(g.phase==="crash")g.v=0; // al chocar, la diana se para en seco
+    else{ if(g.tr>=r.next)program(g);
+      var T=r.to, e=Math.exp(-dt/c.tau); g.ang+=T*dt+(g.v-T)*c.tau*(1-e); g.v=T+(g.v-T)*e; } // integración exacta
   }
   for(i=0;i<g.fly.length;i++){var d=g.fly[i]; d.e+=dt;
     if(d.e>=ts&&g.phase==="play"){ var late=d.e-ts; g.fly.splice(i,1); i--; impact(g,a0+(g.ang-a0)*(dt-late)/dt,g.t-late); } }
