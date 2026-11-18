@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>Diana</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,600&display=swap">
+<style>
+/* Layout: one-screen app. Thin top bar, the playfield fills the rest, a single card floats over it between runs. */
+:root{
+  --sky:#e4edf0; --hills:#cfdde2; --col:#1f3a5f; --cap:#2f5587; --floor:#b7c8ce; --floor-line:#9fb3ba;
+  --token:#f2622e; --ring:#fff3e6; --ink:#14233a; --muted:#566779; --surface:#ffffff; --line:#d3dde2;
+  --page:#f3f7f8; --on-token:#ffffff; --blade:#f4f7f9; --edge:#8ea2b0; --coin:#e3a72f; --coin-in:#f7d27a;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --sky:#101c2c; --hills:#172a40; --col:#7fb3d6; --cap:#a9d0ea; --floor:#1c3049; --floor-line:#2b4566;
+  --token:#ff8a52; --ring:#3a2114; --ink:#e8eff5; --muted:#94a7ba; --surface:#18283d; --line:#2a3e58;
+  --page:#0b1420; --on-token:#1d0e05; --blade:#dfe8ef; --edge:#6d8296; --coin:#f0c24f; --coin-in:#8a6418; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --sky:#101c2c; --hills:#172a40; --col:#7fb3d6; --cap:#a9d0ea; --floor:#1c3049; --floor-line:#2b4566;
+  --token:#ff8a52; --ring:#3a2114; --ink:#e8eff5; --muted:#94a7ba; --surface:#18283d; --line:#2a3e58;
+  --page:#0b1420; --on-token:#1d0e05; --blade:#dfe8ef; --edge:#6d8296; --coin:#f0c24f; --coin-in:#8a6418; color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.4;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.app{height:100%;display:flex;flex-direction:column;gap:10px;padding-block:10px;max-width:560px;margin:0 auto;box-sizing:border-box;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.name{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.home{color:var(--muted);text-decoration:none;padding:4px 8px 4px 0}
+.stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;background:var(--page);touch-action:none;cursor:pointer}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;inset:18px 16px auto;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.btn.clr{flex:none;font-size:13px;padding:8px;color:var(--muted)}
+.days div{font-size:10px}
+.score{font-family:var(--display);font-weight:800;font-size:54px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.chip{font:600 12px var(--body);color:var(--muted);background:var(--surface);border-radius:999px;padding:5px 10px;font-variant-numeric:tabular-nums}
+.over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px;pointer-events:none}
+.card{pointer-events:auto;cursor:default;background:var(--surface);border-radius:16px;padding:18px;width:100%;max-width:340px;max-height:100%;overflow:auto;
+  box-sizing:border-box;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 30px rgba(10,25,45,.18)}
+.card h2{margin:0;font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em;text-wrap:balance}
+.card p{margin:0;color:var(--muted)}
+.big{font-family:var(--display);font-weight:800;font-size:64px;line-height:.9;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-block:1.5px solid var(--line);padding-block:10px}
+.stats div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stats dt,.lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stats dd{margin:0;font-family:var(--display);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.stats{margin:0}
+.days{display:flex;align-items:flex-end;gap:6px;height:56px}
+.days div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.days i{display:block;width:100%;background:var(--col);border-radius:4px 4px 0 0;min-height:2px}
+.days .today i{background:var(--token)}
+.row{display:flex;gap:8px}
+.btn{flex:1;border:1.5px solid var(--line);background:none;color:var(--ink);font:600 15px var(--body);padding:12px;border-radius:12px;cursor:pointer}
+.btn.go{background:var(--token);border-color:var(--token);color:var(--on-token)}
+.btn:focus-visible,input:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:2px}
+.field label{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.field output{font-variant-numeric:tabular-nums;color:var(--muted)}
+.field input{width:100%;accent-color:var(--token);margin:0}
+.snd{display:flex;align-items:center;gap:8px;font-size:14px}
+.snd input{accent-color:var(--token);width:18px;height:18px;margin:0}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <div class="name"><a class="home" href="../" aria-label="Volver al menú de juegos">‹</a> Diana</div>
+  </div>
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud"><div class="score" id="score">0</div><div class="chip" id="round"></div></div>
+    <div class="over" id="over"><div class="card" id="card"></div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* Campo lógico 400x620. La diana gira; "ang" es su giro acumulado en grados (positivo = sentido de las agujas del reloj).
+   Cada dardo clavado guarda su ángulo en la diana (phi); en pantalla está en phi+ang, medido desde abajo (0 = donde llegan los dardos).
+   Medido en el real (60 fps): el dardo sale "lag" ms después del toque, tarda "travel" ms en entrar en la diana y se queda quieto
+   "hold" ms; entonces queda clavado y gira con ella. En ese instante se mira si choca (otro dardo a menos de "gap" grados) o coge moneda.
+   Giro: cada "every" segundos elige una velocidad objetivo y se acerca a ella con constante "tau": v' = (objetivo - v)/tau. */
+var H=620, FW=400, STEP=1/120, CX=200, CY=232, RF=88, RR=100, PEN=34, TIP0=478, DL=104;
+var DEF={v1:145,dv:18,vmax:330,vlo:10,vup:45,first:2.25,every:2.4,tau:1.0,rev0:2,prev:15,revk:140,lag:55,travel:65,hold:35,gap:12.5,n1:5,dn:1,nmax:12,pre:2,pcoin:40,coinw:15,coinp:2,pause:1.05}, CFGV=3;
+var FIELDS=[["v1","Giro al empezar la ronda 1 (grados por segundo)",40,400,1],["dv","Giro de más en cada ronda (grados/s)",0,100,1],["vmax","Giro máximo al empezar una ronda (grados/s)",100,600,5],
+  ["vlo","Bajadas de velocidad dentro de la ronda, hasta (−%)",0,50,1],["vup","Subidas de velocidad dentro de la ronda, hasta (+%)",0,100,1],["first","Segundos hasta el primer cambio de velocidad",0.5,8,0.05],["every","Segundos entre cambios de velocidad",0.5,8,0.05],
+  ["tau","Suavidad de los cambios de velocidad (s)",0.1,3,0.05],
+  ["rev0","Ronda desde la que puede girar al revés",1,15,1],["prev","Probabilidad de girar al revés en cada cambio (%)",0,100,1],["revk","Velocidad al revés, hasta (% de la del inicio de ronda)",50,200,5],
+  ["lag","Del toque a que sale el dardo (ms)",0,200,5],["travel","Vuelo hasta entrar en la diana (ms)",10,300,5],["hold","Quieto antes de girar con la diana (ms)",0,200,5],
+  ["gap","Zona de choque entre dardos (grados)",3,30,0.5],
+  ["n1","Dardos en la ronda 1",1,15,1],["dn","Dardos de más en cada ronda",0,3,1],["nmax","Dardos por ronda, máximo",3,20,1],["pre","Dardos ya clavados al empezar, máximo",0,6,1],
+  ["pcoin","Probabilidad de moneda desde la ronda 2 (%)",0,100,5],["coinw","Zona de acierto de la moneda (grados)",2,30,0.5],["coinp","Puntos extra por moneda",0,5,1],
+  ["pause","Pausa entre rondas (s)",0.2,3,0.05]];
+
+var S={best:0,hist:[],games:0,cfg:Object.assign({},DEF)};
+try{var raw=localStorage.getItem("diana_v1"); if(raw){var o=JSON.parse(raw); S=Object.assign(S,o); S.cfg=o.cfgV===CFGV?Object.assign({},DEF,o.cfg||{}):Object.assign({},DEF);} S.cfgV=CFGV; if(S.snd===undefined)S.snd=true; if(!S.games)S.games=S.hist.length;}catch(e){}
+function save(){try{localStorage.setItem("diana_v1",JSON.stringify(S));}catch(e){}}
+
+/* ---------- lógica del juego (sin dibujo; también se usa para repetir partidas grabadas) ---------- */
+function w180(a){a=(a+180)%360; if(a<0)a+=360; return a-180;}
+function w360(a){a%=360; return a<0?a+360:a;}
+function newGame(cfg,opt){
+  opt=opt||{};
+  var g={cfg:cfg,rnd:opt.rnd||Math.random,angFn:opt.angFn||null,script:opt.rounds||null,t:0,tr:0,round:0,score:0,ang:0,v:0,
+    rot:{to:0,next:0,k:0,rev:false},stuck:[],coins:[],fly:[],left:0,phase:"play",tPhase:0,log:[],fx:[]};
+  newRound(g); return g;
+}
+function base(g){var c=g.cfg; return Math.min(c.vmax,c.v1+c.dv*(g.round-1));}
+function stickT(c){return (c.lag+c.travel+c.hold)/1000;}
+function freeSpot(g,away){ // ángulo al azar lejos de lo que ya hay
+  for(var k=0;k<60;k++){var a=g.rnd()*360, ok=true;
+    for(var i=0;i<g.stuck.length;i++)if(Math.abs(w180(a-g.stuck[i].phi))<away)ok=false;
+    for(i=0;i<g.coins.length;i++)if(Math.abs(w180(a-g.coins[i].phi))<away)ok=false;
+    if(ok)return a;}
+  return g.rnd()*360;
+}
+function newRound(g){
+  var c=g.cfg, i, sc; g.round++; g.tr=0; g.stuck=[]; g.coins=[]; g.fly=[]; g.phase="play"; g.tPhase=0;
+  g.left=Math.min(c.nmax,c.n1+c.dn*(g.round-1)); g.total=g.left;
+  sc=g.script&&g.script[g.round-1];
+  if(sc){ (sc.pre||[]).forEach(function(p){g.stuck.push({phi:w360(p),pre:true});}); (sc.coins||[]).forEach(function(p){g.coins.push({phi:w360(p)});}); }
+  else{
+    var np=Math.min(c.pre,g.round-1); for(i=0;i<np;i++)g.stuck.push({phi:freeSpot(g,2*c.gap+12),pre:true});
+    if(g.round===1||g.rnd()*100<c.pcoin)g.coins.push({phi:freeSpot(g,c.gap+c.coinw+4)}); // en la ronda 1 siempre hubo moneda
+  }
+  var v=base(g); g.v=v; g.rot={to:v,next:c.first,k:0,rev:false}; // al empezar la ronda salta a su velocidad
+}
+function program(g){ // nueva velocidad objetivo: entre un poco menos y bastante más que la de inicio de ronda, o a veces al revés
+  var c=g.cfg, r=g.rot, b=base(g); r.k++;
+  // en la ronda 2, el segundo cambio fue al revés en los dos vídeos
+  if(g.round>=c.rev0&&!r.rev&&((g.round===2&&r.k===2)||g.rnd()*100<c.prev)){ r.to=-b*(1+g.rnd()*Math.max(0,c.revk-100)/100); r.rev=true; }
+  else{ r.to=b*(1+(g.rnd()*(c.vup+c.vlo)-c.vlo)/100); r.rev=false; }
+  r.next+=c.every;
+}
+function throwDart(g,late){ // late: parte del paso actual que pasó antes del toque (para repetir partidas grabadas)
+  if(g.phase!=="play"||g.left<=0)return false;
+  for(var i=0;i<g.fly.length;i++)if(g.fly[i].e<g.cfg.lag/1000)return false; // el anterior aún no ha salido
+  g.fly.push({e:-(late||0)}); g.left--; return true;
+}
+function update(g,dt){
+  var a0=g.ang, r=g.rot, c=g.cfg, i, ts=stickT(c);
+  g.t+=dt; g.tr+=dt; g.tPhase+=dt;
+  if(g.angFn){ g.ang=g.angFn(g.t); g.v=(g.ang-a0)/dt; }
+  else{
+    if(g.phase!=="crash"&&g.tr>=r.next)program(g);
+    var T=r.to, e=Math.exp(-dt/c.tau); g.ang+=T*dt+(g.v-T)*c.tau*(1-e); g.v=T+(g.v-T)*e; // integración exacta
+  }
+  for(i=0;i<g.fly.length;i++){var d=g.fly[i]; d.e+=dt;
+    if(d.e>=ts&&g.phase==="play"){ var late=d.e-ts; g.fly.splice(i,1); i--; impact(g,a0+(g.ang-a0)*(dt-late)/dt,g.t-late); } }
+  if(g.phase==="play"&&g.left===0&&!g.fly.length){g.phase="clear"; g.tPhase=0;}
+  if(g.phase==="clear"&&g.tPhase>=c.pause)newRound(g);
+}
+function impact(g,a,t){
+  var c=g.cfg, phi=w360(-a), i, got=0;
+  for(i=0;i<g.stuck.length;i++)if(Math.abs(w180(g.stuck[i].phi+a))<c.gap){
+    g.phase="crash"; g.tPhase=0; g.crashAng=a; g.log.push({t:t,phi:phi,crash:true,round:g.round,score:g.score}); g.fx.push({k:"crash"}); return; }
+  g.stuck.push({phi:phi,t:g.t}); g.score++;
+  for(i=g.coins.length-1;i>=0;i--)if(Math.abs(w180(g.coins[i].phi+a))<c.coinw){ got++; g.score+=c.coinp; g.fx.push({k:"coin",phi:g.coins[i].phi}); g.coins.splice(i,1); }
+  g.log.push({t:t,phi:phi,coin:got,round:g.round,score:g.score}); g.fx.push({k:"hit"});
+}
+// Repite una partida grabada: giro medido, dardos y monedas de cada ronda, e instantes de los toques. Devuelve puntos y cada clavada.
+function replay(sc){
+  var cfg=Object.assign({},DEF,sc.cfg||{}), A=sc.angle, k=0;
+  function angFn(t){ while(k<A.length-2&&A[k+1][0]<t)k++; while(k>0&&A[k][0]>t)k--; var p=A[k],q=A[k+1]; return p[1]+(q[1]-p[1])*(t-p[0])/(q[0]-p[0]); }
+  var g=newGame(cfg,{angFn:angFn,rounds:sc.rounds,rnd:function(){return 0.5;}}), taps=sc.taps.slice().sort(function(a,b){return a-b;}), j=0, tEnd=sc.tEnd||(taps[taps.length-1]+3);
+  g.ang=angFn(0);
+  while(g.t<tEnd&&g.phase!=="crash"){
+    while(j<taps.length&&taps[j]<=g.t+STEP){throwDart(g,taps[j]-g.t); j++;}
+    update(g,STEP);
+  }
+  return {score:g.score,round:g.round,crash:g.phase==="crash",hits:g.log};
+}
+window.Diana={replay:replay,DEF:DEF,newGame:newGame,update:update,throwDart:throwDart};
+
+/* ---------- pantalla ---------- */
+var stage=document.getElementById("stage"), cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+var elScore=document.getElementById("score"), elRound=document.getElementById("round"), over=document.getElementById("over"), card=document.getElementById("card");
+var scale=1, C={};
+function colors(){var cs=getComputedStyle(document.documentElement);["sky","hills","col","cap","floor","floor-line","token","ring","ink","muted","surface","blade","edge","coin","coin-in","page"].forEach(function(n){C[n]=cs.getPropertyValue("--"+n).trim();});}
+function resize(){var r=stage.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,3); if(!r.height)return;
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d); scale=Math.min(r.width/FW,r.height/H);
+  var ox=(r.width-FW*scale)/2, oy=(r.height-H*scale)/2; ctx.setTransform(scale*d,0,0,scale*d,ox*d,oy*d);
+  var hd=elScore.parentNode; hd.style.top=(oy+10)+"px"; hd.style.left=(ox+14)+"px"; hd.style.right=(ox+14)+"px";}
+new ResizeObserver(resize).observe(stage);
+new MutationObserver(colors).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",colors);
+colors(); resize();
+
+var G=null, state="ready", view="main", deadAt=0, lastScore=null, shake=0, flash=0, parts=[], pops=[], leaving=[], falling=null, idleAng=0;
+var DEMO=location.hash==="#demo";
+var AC=null;
+function tone(f,f2,dur,vol,type){ if(!S.snd)return; try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended")AC.resume();
+  var o=AC.createOscillator(), gn=AC.createGain(), t=AC.currentTime; o.type=type||"sine"; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f2,t+dur);
+  gn.gain.setValueAtTime(vol,t); gn.gain.exponentialRampToValueAtTime(0.001,t+dur); o.connect(gn); gn.connect(AC.destination); o.start(t); o.stop(t+dur);}catch(e){} }
+
+function start(){
+  G=newGame(S.cfg); state="play"; over.hidden=true; parts=[]; pops=[]; leaving=[]; falling=null; shake=0; hud();
+}
+function die(){
+  state="dead"; deadAt=performance.now(); lastScore=G.score;
+  if(DEMO)console.log("demo "+G.score+" puntos, ronda "+G.round+", "+G.t.toFixed(1)+" s");
+  S.hist.push(G.score); if(S.hist.length>50)S.hist.shift(); S.games++; if(G.score>S.best)S.best=G.score;
+  save(); view="main"; panel();
+}
+function hud(){ elScore.textContent=G?G.score:0; elRound.textContent=G?"Ronda "+G.round:""; elRound.hidden=!G; }
+function onFx(){ // efectos de lo que acaba de pasar en la lógica
+  G.fx.forEach(function(f){
+    if(f.k==="hit"){ tone(320,140,0.07,0.35,"triangle"); flash=1; }
+    else if(f.k==="coin"){ tone(880,1320,0.16,0.25,"sine"); var s=f.phi+G.ang;
+      var x=CX-Math.sin(s*Math.PI/180)*(RR+6), y=CY+Math.cos(s*Math.PI/180)*(RR+6);
+      pops.push({x:x,y:y+30,t:0,txt:"+"+G.cfg.coinp}); parts.push({x:x-5,y:y,vx:-70,vy:-120,rot:0,vr:-6,t:0,half:-1},{x:x+5,y:y,vx:70,vy:-120,rot:0,vr:6,t:0,half:1}); }
+    else if(f.k==="crash"){ tone(190,55,0.32,0.4,"sawtooth"); shake=1; falling={x:CX,y:CY+RR+40,vx:(Math.random()<0.5?-1:1)*90,vy:-260,rot:0,vr:(Math.random()<0.5?-1:1)*9}; }
+  });
+  G.fx=[];
+}
+var botAt=0;
+function bot(){ // piloto automático de prueba (#demo): lanza cuando el sitio de llegada está libre
+  if(G.t<botAt||G.phase!=="play"||G.fly.length)return;
+  var a=G.ang+G.v*stickT(G.cfg), ok=true;
+  for(var i=0;i<G.stuck.length;i++)if(Math.abs(w180(G.stuck[i].phi+a))<G.cfg.gap+9)ok=false;
+  if(ok){throwDart(G,0); botAt=G.t+0.12;}
+}
+function step(dt){
+  var r0=G.round, ph=G.phase;
+  if(DEMO)bot();
+  update(G,dt); onFx();
+  if(ph==="play"&&G.phase==="clear"){ // ronda superada: los dardos salen despedidos
+    leaving=G.stuck.map(function(s){return {phi:s.phi+G.ang, d:0, vr:(Math.random()*2-1)*4};}); G.stuck=[]; G.coins=[]; tone(520,780,0.18,0.2,"sine"); }
+  if(G.round!==r0){leaving=[]; hud();}
+  if(G.phase==="crash"&&G.tPhase>0.75&&state==="play")die();
+}
+
+/* ---------- dibujo ---------- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+function dart(x,y,rot,s,alpha){ // punta en (x,y); el dardo se extiende hacia +y girado "rot" grados
+  ctx.save(); ctx.translate(x,y); ctx.rotate(rot*Math.PI/180); ctx.scale(s,s); if(alpha!==undefined)ctx.globalAlpha=alpha;
+  ctx.fillStyle=C.blade; ctx.strokeStyle=C.edge; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(7.5,14,6.5,44); ctx.lineTo(-6.5,44); ctx.quadraticCurveTo(-7.5,14,0,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,5); ctx.lineTo(0,42); ctx.stroke();
+  ctx.fillStyle=C.col; rr(-10,43,20,6,2);
+  ctx.fillStyle=C.token; rr(-5.5,49,11,50,3);
+  ctx.fillStyle=C.col; ctx.beginPath(); ctx.arc(0,100,5.5,0,7); ctx.fill();
+  ctx.restore();
+}
+function stuckDart(s,rOff,alpha){ var a=s*Math.PI/180, r=RR-PEN+(rOff||0); dart(CX-Math.sin(a)*r,CY+Math.cos(a)*r,s,1,alpha); }
+function coin(s,r,alpha){ var a=s*Math.PI/180, x=CX-Math.sin(a)*r, y=CY+Math.cos(a)*r;
+  ctx.save(); if(alpha!==undefined)ctx.globalAlpha=alpha; ctx.fillStyle=C.coin; ctx.beginPath(); ctx.arc(x,y,12,0,7); ctx.fill();
+  ctx.fillStyle=C["coin-in"]; ctx.beginPath(); ctx.arc(x,y,7.5,0,7); ctx.fill(); ctx.fillStyle=C.coin; ctx.font="800 11px "+getComputedStyle(document.body).fontFamily; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("+",x,y+0.5); ctx.restore(); }
+function board(ang){
+  var i, a;
+  ctx.fillStyle=C.col; ctx.beginPath(); ctx.arc(CX,CY,RR,0,7); ctx.fill();
+  for(i=0;i<24;i++){ a=(ang+i*15)*Math.PI/180; ctx.fillStyle=i%2?C.cap:C.col; ctx.beginPath(); ctx.arc(CX,CY,RR-1.5,a+0.02,a+Math.PI/12-0.02); ctx.arc(CX,CY,RF+2,a+Math.PI/12-0.02,a+0.02,true); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle=C.floor; ctx.beginPath(); ctx.arc(CX,CY,RF,0,7); ctx.fill();
+  ctx.strokeStyle=C["floor-line"]; ctx.lineWidth=2.5;
+  [0.74,0.48].forEach(function(k){ctx.beginPath(); ctx.arc(CX,CY,RF*k,0,7); ctx.stroke();});
+  ctx.lineWidth=2; // marcas que giran con la diana, para ver el giro
+  [15,135,255,75].forEach(function(m,j){ a=(m+ang)*Math.PI/180; var r0=j===3?RF*0.5:RF*0.28, r1=j===3?RF*0.72:RF*0.92;
+    ctx.beginPath(); ctx.moveTo(CX-Math.sin(a)*r0,CY+Math.cos(a)*r0); ctx.lineTo(CX-Math.sin(a)*r1,CY+Math.cos(a)*r1); ctx.stroke(); });
+  ctx.fillStyle=C.token; ctx.beginPath(); ctx.arc(CX,CY,RF*0.2,0,7); ctx.fill();
+  ctx.fillStyle=C.ring; ctx.beginPath(); ctx.arc(CX,CY,RF*0.09,0,7); ctx.fill();
+}
+function draw(now,dt){
+  var i, ang=G?G.ang:idleAng;
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(0,0,FW,H); ctx.clip();
+  ctx.fillStyle=C.sky; ctx.fillRect(0,0,FW,H);
+  ctx.fillStyle=C.hills; ctx.beginPath(); ctx.arc(CX,CY,182,0,7); ctx.fill();
+  ctx.fillStyle=C.page; ctx.globalAlpha=0.5; ctx.fillRect(0,H-78,FW,78); ctx.globalAlpha=1;
+  if(shake>0.02){ctx.translate(Math.sin(now/18)*6*shake,Math.cos(now/23)*4*shake); shake*=Math.pow(0.92,dt*60);}
+  var bob=0; if(flash>0){bob=-5*flash; flash=Math.max(0,flash-dt*9);}
+  ctx.save(); ctx.translate(0,bob);
+  if(G){
+    var c=G.cfg, yin=CY+RR-PEN, pending=false;
+    for(i=0;i<G.fly.length;i++){var e=G.fly[i].e*1000, k=Math.max(0,Math.min(1,(e-c.lag)/c.travel)); if(e<c.lag)pending=true;
+      dart(CX,TIP0+(yin-TIP0)*k,0,1);}
+    for(i=0;i<G.stuck.length;i++)stuckDart(G.stuck[i].phi+ang);
+    for(i=0;i<leaving.length;i++){var L=leaving[i]; L.d+=dt; stuckDart(L.phi+L.vr*L.d*20,L.d*420,Math.max(0,1-L.d*3));}
+  }else{ [40,160,250].forEach(function(p){stuckDart(p+ang);}); }
+  board(ang);
+  if(G)for(i=0;i<G.coins.length;i++)coin(G.coins[i].phi+ang,RR+6);
+  else coin(205+ang,RR+6);
+  ctx.restore();
+  // dardos en vuelo y el siguiente, abajo
+  if(G){
+    var rest=G.phase==="play"&&G.left>0&&!pending;
+    if(rest)dart(CX,TIP0,0,1);
+    var nIcons=G.phase==="play"?Math.max(0,G.left-(rest?1:0)):0;
+    for(i=0;i<nIcons;i++)dart(CX+40+i*13,TIP0+22,0,0.42);
+    if(falling){falling.vy+=1500*dt; falling.x+=falling.vx*dt; falling.y+=falling.vy*dt; falling.rot+=falling.vr*dt; dart(falling.x,falling.y,180+falling.rot*57.3,1);}
+  }else dart(CX,TIP0+3*Math.sin(now/260),0,1);
+  for(i=parts.length-1;i>=0;i--){var p=parts[i]; p.t+=dt; p.vy+=900*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt;
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.globalAlpha=Math.max(0,1-p.t*1.2); ctx.fillStyle=C.coin; ctx.beginPath(); ctx.arc(0,0,12,p.half<0?Math.PI/2:-Math.PI/2,p.half<0?Math.PI*1.5:Math.PI/2); ctx.fill(); ctx.restore();
+    if(p.t>1)parts.splice(i,1);}
+  for(i=pops.length-1;i>=0;i--){var q=pops[i]; q.t+=dt; ctx.save(); ctx.globalAlpha=Math.max(0,1-q.t*1.1); ctx.fillStyle=C.ink; ctx.font="800 24px "+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign="center"; ctx.fillText(q.txt,q.x,q.y-q.t*40); ctx.restore(); if(q.t>1)pops.splice(i,1);}
+  ctx.restore();
+}
+var last=0, acc=0;
+function frame(now){
+  var dt=Math.min(0.1,(now-last)/1000); last=now;
+  if(state==="play"){ acc+=dt; var sc=G.score, rd=G.round; while(acc>=STEP&&state==="play"){step(STEP); acc-=STEP;} if(sc!==G.score||rd!==G.round)hud(); }
+  else { acc=0; idleAng+=40*dt; if(G&&state==="dead"){G.ang+=G.v*dt*0.3; G.v*=Math.pow(0.5,dt);} }
+  draw(now,dt); requestAnimationFrame(frame);
+}
+
+function avg(){var h=S.hist.slice(-10); if(!h.length)return "–"; return Math.round(h.reduce(function(a,b){return a+b;},0)/h.length);}
+function panel(){
+  over.hidden=false;
+  if(view==="cfg"){
+    card.innerHTML='<h2>Ajustes</h2><p>Valores sacados de grabaciones del juego real. Cámbialos solo si notas alguna diferencia; se guardan en este móvil.</p>'+
+      FIELDS.map(function(f){return '<div class="field"><label for="f-'+f[0]+'"><span>'+f[1]+'</span><output id="o-'+f[0]+'">'+S.cfg[f[0]]+'</output></label>'+
+      '<input type="range" id="f-'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+S.cfg[f[0]]+'"></div>';}).join("")+
+      '<label class="snd" for="f-snd"><input type="checkbox" id="f-snd"'+(S.snd?" checked":"")+'> Sonido al clavar, al coger moneda y al chocar</label>'+
+      '<div class="row"><button class="btn" id="b-reset" type="button">Valores iniciales</button><button class="btn go" id="b-back" type="button">Listo</button></div>';
+    FIELDS.forEach(function(f){var inp=document.getElementById("f-"+f[0]); inp.addEventListener("input",function(){S.cfg[f[0]]=parseFloat(inp.value);document.getElementById("o-"+f[0]).textContent=inp.value;save();});});
+    document.getElementById("f-snd").onchange=function(e){S.snd=e.target.checked;save();};
+    document.getElementById("b-reset").onclick=function(){S.cfg=Object.assign({},DEF);save();panel();};
+    document.getElementById("b-back").onclick=function(){view="main";panel();};
+    return;
+  }
+  var html="", h=S.hist.slice(-10), mx=Math.max.apply(null,h.concat([1])), i;
+  if(state==="dead"&&lastScore!==null) html+='<div><div class="lbl">'+(lastScore>=S.best&&lastScore>0?"Nuevo récord":"Puntos")+'</div><div class="big">'+lastScore+'</div></div>';
+  else html+='<h2>Diana</h2><p>Toca para lanzar dardos a la diana que gira. Si das a un dardo ya clavado, se acaba. Cada dardo suma 1 punto y las monedas del borde suman 2 más. Cada ronda trae más dardos y gira más rápido; a veces frena o gira al revés.</p>';
+  html+='<dl class="stats"><div><dt>Récord</dt><dd>'+S.best+'</dd></div><div><dt>Media 10</dt><dd>'+avg()+'</dd></div><div><dt>Partidas</dt><dd>'+S.games+'</dd></div></dl>';
+  html+='<div><div class="lbl">Últimas 10 partidas</div><div class="days">';
+  for(i=0;i<10;i++){var v=h[i-(10-h.length)]; html+='<div'+(i===9&&v!==undefined?' class="today"':'')+'><span>'+(v===undefined?"·":v)+'</span><i style="height:'+(v?Math.round(v/mx*30)+2:2)+'px"></i></div>';}
+  html+='</div></div>';
+  html+='<div class="row"><button class="btn" id="b-cfg" type="button">Ajustes</button><button class="btn go" id="b-go" type="button">'+(state==="dead"?"Otra vez":"Jugar")+'</button></div>';
+  html+='<button class="btn clr" id="b-clr" type="button">Reiniciar estadísticas</button>';
+  card.innerHTML=html;
+  document.getElementById("b-cfg").onclick=function(){view="cfg";panel();};
+  document.getElementById("b-go").onclick=start;
+  var clr=document.getElementById("b-clr"), armed=false;
+  clr.onclick=function(){ if(!armed){armed=true; clr.textContent="¿Borrar récord, media y partidas? Toca otra vez"; return;}
+    S.hist=[]; S.best=0; S.games=0; save(); state="ready"; lastScore=null; G=null; hud(); panel(); };
+}
+function tap(){
+  if(state==="play"){ if(!DEMO)throwDart(G,0); return; }
+  if(view==="cfg")return;
+  if(state==="dead"&&performance.now()-deadAt<600)return;
+  start();
+}
+stage.addEventListener("pointerdown",function(e){ if(e.target.closest(".card"))return; e.preventDefault(); tap(); });
+window.addEventListener("keydown",function(e){ if(e.repeat||(e.target.closest&&e.target.closest("input,button")))return;
+  if(e.code==="Space"||e.code==="ArrowUp"||e.code==="Enter"){e.preventDefault();tap();} });
+
+hud(); panel(); requestAnimationFrame(function(n){last=n;frame(n);});
+})();
+</script>
+</body>
+</html>

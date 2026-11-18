@@ -7,6 +7,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - `index.html`: menú con un enlace por juego.
 - `franja/index.html`: "Franja" (tocar para subir y pasar por huecos entre columnas).
 - `carriles/index.html`: "Carriles" (3 carriles, tocar izquierda/derecha, esquivar coches; el real se llama Lane Rush).
+- `diana/index.html`: "Diana" (lanzar dardos a una diana que gira sin dar a los ya clavados; el real se llama Knife Throw).
 - Cada juego es una página única, sin dependencias ni compilación, con el mismo estilo visual (el CSS está copiado en cada página).
 - Se publica con GitHub Pages desde `main`, carpeta raíz: https://delatorrezgz-design.github.io/playus-practica-juegos/
 
@@ -16,7 +17,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - Física a paso fijo de 1/120 s con integración exacta (`y += v*dt + g*dt²/2`).
 - Marcas y ajustes en `localStorage`, siempre con try/catch. Si cambian los valores por defecto, sube `CFGV` para que se apliquen sin borrar las marcas.
 - Panel de Ajustes con un deslizador por parámetro físico y botón "Valores iniciales".
-- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles: solo práctica, con récord, media de las últimas 10 partidas y botón "Reiniciar estadísticas" (el usuario lo pidió así).
+- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles y Diana: solo práctica, con récord, media de las últimas 10 partidas, barritas de las 10 últimas y botón "Reiniciar estadísticas" con confirmación (el usuario lo pidió así).
 
 ## Cómo calibrar un juego con un vídeo
 
@@ -62,3 +63,34 @@ hacia los 850 m, la mitad de oleadas en pareja al final, y una posible velocidad
 
 Leer el marcador: umbral de blanco (canal mínimo > 210), separar dígitos por columnas y compararlos con plantillas
 (`ocr.py` de la sesión); da el metro exacto de cada fotograma.
+
+## Estado de Diana (tercera versión: YouTube + dos grabaciones propias de práctica a 60 fps, una con choque)
+
+Mecánica: la diana gira; tocar lanza un dardo recto hacia arriba. Queda clavado (y gira con la diana) 155 ms después del toque;
+en ese mismo instante choca (fin) si hay otro dardo a menos de `gap` grados, o coge la moneda del borde (+2; en el real, manzana).
+Al acabar los dardos de la ronda salen despedidos y, tras 1,05 s, empieza otra con más dardos, más giro y algún dardo ya clavado.
+`diana/index.html#demo` juega solo. `Diana.replay({angle:[[t,grados]...], rounds:[{pre:[..],coins:[..]}], taps:[t...]})`
+repite una partida grabada (giro medido, dardos previos y toques) y devuelve puntos y ángulo de cada clavada.
+
+Medido en grabaciones propias (práctica, 60 fps, toques visibles):
+- Del punto de "Mostrar toques" a que sale el cuchillo: 3–5 fotogramas (45–80 ms). Llega al tronco ~40 ms después, entra hasta la
+  guarda, se queda quieto 2–3 fotogramas y entonces gira con el tronco: del toque a clavado, 143–185 ms (mediana 154, 9 toques).
+- Choque: el tronco se para en seco en ese mismo instante (cuando acabaría el "quieto"); el cuchillo nuevo rebota y sale volando.
+  Chocó con el otro cuchillo a ~9,5–10° (venía hacia abajo); no chocaron parejas a 15,2° y 17,1°. Zona puesta en 12,5°.
+- Manzana: se corta en ese mismo instante; contó con el cuchillo a 13,7° de su centro (y a 7° en YouTube). Zona puesta en 15°.
+- Giro: cada ~2,4 s elige una velocidad objetivo y se acerca a ella exponencialmente con τ = 1,0 s (ajuste con error de 2 °/s).
+  El primer cambio llega ~2,25 s después de empezar la ronda; al empezar ronda salta de golpe a su velocidad inicial.
+  Inicio de ronda: 146–150, 160 (en las tres partidas), 178, 200 °/s → 145 + 18 por ronda.
+  Objetivos entre 0,9 y 1,45 veces el inicio. Ronda 1: 150 → 158 → 186 → 174 → 150 y 146 → 189 → 134.
+  Ronda 2: 160 → 212 → −162 (al revés en el 2.º cambio, igual que en YouTube). YouTube: ronda 4 al revés a −280 a los 18,7 s.
+- Rondas de 5, 6, 7, 8 cuchillos; ya clavados al empezar 0, 1, 2, 2. Manzana en la ronda 1 siempre (3 de 3), luego 2 de 5 rondas.
+- Toques a 80–110 ms entre sí lanzan todos. No hay límite de tiempo.
+- Repeticiones con los toques reales: práctica 5 puntos (cuchillos a ≤ 2,4° de los reales); choque 7 puntos con manzana en el 1.º
+  y choque en el 1.º de la ronda 2 (≤ 3,8°); YouTube 26 puntos. Igual que en el juego real.
+
+Cómo se midió: centro del tronco por ajuste de círculo al borde de ladrillos (práctica: 539,5; 1067; radio 268 px en 1080×2414);
+desenrollado polar (`cv2.remap`) y correlación circular de la cara del tronco entre fotogramas para el giro, repartiendo los saltos
+dobles del grabador entre fotogramas de 60 Hz; objetivo de velocidad = v + τ·v'. Mangos (marrón, R−G > 45) en un anillo fuera del
+borde, en coordenadas del tronco: ángulo de cada cuchillo; el instante en que se clava sale de cuándo ese ángulo pasa por abajo.
+Toques: disco claro pequeño que aparece de golpe; comprobarlos a ojo ampliando la zona de abajo fotograma a fotograma.
+Vídeos de más de 30 MB no se pueden subir: pedir grabar a 720p con calidad baja y 60 fps, o trocear con 2–3 s repetidos.
