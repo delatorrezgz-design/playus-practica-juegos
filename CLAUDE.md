@@ -129,6 +129,8 @@ Medido:
 - Pantallas: "Tap to start, tap again at 7s" con un disco gris que late (adorno, no es el toque); durante la cuenta "TAP AT 7".
   Tras parar, ~1,4–1,75 s hasta la pantalla final.
 
+Marcador con menos de 2 decimales (ajuste para entrenar el ritmo): corta en vez de redondear; redondeando, el "7" salía a los 6,5 s.
+
 Sin medir: qué pasa al llegar a 7 sin tocar o al tocar después (Justo lo da como "te has pasado"; el texto del juego dice "Si
 esperas demasiado, la ronda termina").
 
