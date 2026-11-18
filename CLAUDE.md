@@ -7,6 +7,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - `index.html`: menú con un enlace por juego.
 - `franja/index.html`: "Franja" (tocar para subir y pasar por huecos entre columnas).
 - `carriles/index.html`: "Carriles" (3 carriles, tocar izquierda/derecha, esquivar coches; el real se llama Lane Rush).
+- `diana/index.html`: "Diana" (lanzar dardos a una diana que gira sin dar a los ya clavados; el real se llama Knife Throw).
 - Cada juego es una página única, sin dependencias ni compilación, con el mismo estilo visual (el CSS está copiado en cada página).
 - Se publica con GitHub Pages desde `main`, carpeta raíz: https://delatorrezgz-design.github.io/playus-practica-juegos/
 
@@ -16,7 +17,7 @@ Minijuegos web de práctica que imitan la mecánica (no el aspecto ni el nombre)
 - Física a paso fijo de 1/120 s con integración exacta (`y += v*dt + g*dt²/2`).
 - Marcas y ajustes en `localStorage`, siempre con try/catch. Si cambian los valores por defecto, sube `CFGV` para que se apliquen sin borrar las marcas.
 - Panel de Ajustes con un deslizador por parámetro físico y botón "Valores iniciales".
-- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles: solo práctica, con récord, media de las últimas 10 partidas y botón "Reiniciar estadísticas" (el usuario lo pidió así).
+- Franja: reto del día (3 intentos, cuenta el mejor) y práctica libre. Carriles y Diana: solo práctica, con récord, media de las últimas 10 partidas, barritas de las 10 últimas y botón "Reiniciar estadísticas" con confirmación (el usuario lo pidió así).
 
 ## Cómo calibrar un juego con un vídeo
 
@@ -62,3 +63,23 @@ hacia los 850 m, la mitad de oleadas en pareja al final, y una posible velocidad
 
 Leer el marcador: umbral de blanco (canal mínimo > 210), separar dígitos por columnas y compararlos con plantillas
 (`ocr.py` de la sesión); da el metro exacto de cada fotograma.
+
+## Estado de Diana (primera versión, con un vídeo de YouTube)
+
+Mecánica: la diana gira; tocar lanza un dardo recto hacia arriba que se clava abajo. Choca (fin) si hay otro dardo a menos de
+`gap` grados; +1 por dardo y +2 si se clava sobre una moneda del borde (en el real, manzana). Al acabar los dardos de la ronda,
+salen despedidos y empieza otra con más dardos, más giro y algún dardo ya clavado.
+`diana/index.html#demo` juega solo. `Diana.replay({angle:[[t,grados]...], rounds:[{pre:[..],coins:[..]}], taps:[t...]})`
+repite una partida grabada (giro medido, dardos previos y toques) y devuelve puntos y ángulo de cada clavada.
+
+Del vídeo de YouTube (grabado de un Short a 30 fps; sin comprobar si va acelerado; partida de 26 puntos cortada en la ronda 4):
+- Rondas de 5, 6, 7 y 8 cuchillos; ya clavados al empezar: 0, 1, 2, 2. Pausa de 1,0 s entre el último cuchillo y la ronda siguiente.
+- Giro horario de ~140, 170, 200 y 250 °/s por ronda, con cambios suaves de ~1,2 s. En la ronda 4 (a los ~19 s) frenó,
+  giró a −200 °/s durante ~1 s y volvió. El jugador del vídeo esperó 20 s sin lanzar: no hay límite de tiempo.
+- Manzana: 1 en 4 rondas, en el borde; contó un cuchillo a 7° de su centro; suma +2 (además del +1).
+- Separación mínima entre cuchillos sin chocar: 21° (la zona de choque es menor). Vuelo ≤ 50 ms; el siguiente cuchillo sale al instante.
+- Repetición: los mismos 24 lanzamientos dan 26 puntos y la manzana en el 2.º, como en el vídeo.
+
+Cómo se midió: centro del tronco por ajuste de círculo al borde de ladrillos; desenrollado polar alrededor del centro
+(`cv2.remap`) y correlación circular de la cara del tronco entre fotogramas para el giro; los mangos (marrón, R−G > 45)
+en un anillo fuera del borde, pasados a coordenadas del tronco, dan cada cuchillo clavado y su ángulo.
