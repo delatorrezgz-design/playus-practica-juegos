@@ -89,9 +89,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
    "hold" ms; entonces queda clavado y gira con ella. En ese instante se mira si choca (otro dardo a menos de "gap" grados) o coge moneda.
    Giro: cada "every" segundos elige una velocidad objetivo y se acerca a ella con constante "tau": v' = (objetivo - v)/tau. */
 var H=620, FW=400, STEP=1/120, CX=200, CY=232, RF=88, RR=100, PEN=34, TIP0=478, DL=104;
-var DEF={v1:140,dv:20,vmax:330,vup:45,first:2.25,every:2.35,tau:1.0,rev0:2,prev:15,revk:140,lag:50,travel:65,hold:35,gap:11,n1:5,dn:1,nmax:12,pre:2,pcoin:30,coinw:10,coinp:2,pause:1.05}, CFGV=2;
+var DEF={v1:145,dv:18,vmax:330,vlo:10,vup:45,first:2.25,every:2.4,tau:1.0,rev0:2,prev:15,revk:140,lag:55,travel:65,hold:35,gap:12.5,n1:5,dn:1,nmax:12,pre:2,pcoin:40,coinw:15,coinp:2,pause:1.05}, CFGV=3;
 var FIELDS=[["v1","Giro al empezar la ronda 1 (grados por segundo)",40,400,1],["dv","Giro de más en cada ronda (grados/s)",0,100,1],["vmax","Giro máximo al empezar una ronda (grados/s)",100,600,5],
-  ["vup","Subidas de velocidad dentro de la ronda, hasta (+%)",0,100,1],["first","Segundos hasta el primer cambio de velocidad",0.5,8,0.05],["every","Segundos entre cambios de velocidad",0.5,8,0.05],
+  ["vlo","Bajadas de velocidad dentro de la ronda, hasta (−%)",0,50,1],["vup","Subidas de velocidad dentro de la ronda, hasta (+%)",0,100,1],["first","Segundos hasta el primer cambio de velocidad",0.5,8,0.05],["every","Segundos entre cambios de velocidad",0.5,8,0.05],
   ["tau","Suavidad de los cambios de velocidad (s)",0.1,3,0.05],
   ["rev0","Ronda desde la que puede girar al revés",1,15,1],["prev","Probabilidad de girar al revés en cada cambio (%)",0,100,1],["revk","Velocidad al revés, hasta (% de la del inicio de ronda)",50,200,5],
   ["lag","Del toque a que sale el dardo (ms)",0,200,5],["travel","Vuelo hasta entrar en la diana (ms)",10,300,5],["hold","Quieto antes de girar con la diana (ms)",0,200,5],
@@ -133,11 +133,11 @@ function newRound(g){
   }
   var v=base(g); g.v=v; g.rot={to:v,next:c.first,k:0,rev:false}; // al empezar la ronda salta a su velocidad
 }
-function program(g){ // nueva velocidad objetivo: más rápida que la de inicio de ronda, o a veces al revés
+function program(g){ // nueva velocidad objetivo: entre un poco menos y bastante más que la de inicio de ronda, o a veces al revés
   var c=g.cfg, r=g.rot, b=base(g); r.k++;
   // en la ronda 2, el segundo cambio fue al revés en los dos vídeos
   if(g.round>=c.rev0&&!r.rev&&((g.round===2&&r.k===2)||g.rnd()*100<c.prev)){ r.to=-b*(1+g.rnd()*Math.max(0,c.revk-100)/100); r.rev=true; }
-  else{ r.to=b*(1+g.rnd()*c.vup/100); r.rev=false; }
+  else{ r.to=b*(1+(g.rnd()*(c.vup+c.vlo)-c.vlo)/100); r.rev=false; }
   r.next+=c.every;
 }
 function throwDart(g,late){ // late: parte del paso actual que pasó antes del toque (para repetir partidas grabadas)
